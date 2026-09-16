@@ -1,0 +1,80 @@
+name: moacut
+x-app: &app
+  image: moacut-backend:${MOACUT_IMAGE_TAG:-local}
+  build:
+    context: .
+    dockerfile: infra/backend.Dockerfile
+  environment: &env
+    DATABASE_URL: postgresql+psycopg://moacut:${POSTGRES_PASSWORD:-moacut-local-only}@db:5432/moacut
+    STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+    STORAGE_ROOT: /app/data/storage
+    FIXTURE_MANIFEST: /app/backend/fixtures/manifest.json
+    FACE_ANALYSIS_PROVIDER: ${FACE_ANALYSIS_PROVIDER:-fixture}
+    DEMO_ENABLED: ${DEMO_ENABLED:-true}
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8080}
+    AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+    S3_BUCKET: ${S3_BUCKET:-}
+    S3_PREFIX: ${S3_PREFIX:-moacut/}
+    REKOGNITION_SIMILARITY_THRESHOLD: ${REKOGNITION_SIMILARITY_THRESHOLD:-90}
+    REKOGNITION_CANDIDATE_MARGIN: ${REKOGNITION_CANDIDATE_MARGIN:-5}
+    REKOGNITION_COLLECTION_PREFIX: ${REKOGNITION_COLLECTION_PREFIX:-moacut-}
+    WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+    WORKER_MAX_ATTEMPTS: ${WORKER_MAX_ATTEMPTS:-3}
+    WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+    WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-2}
+    AWS_TIMEOUT_SECONDS: ${AWS_TIMEOUT_SECONDS:-20}
+    GEOCODING_URL: ${GEOCODING_URL:-}
+    GEOCODING_USER_AGENT: ${GEOCODING_USER_AGENT:-MoaCut/1.0}
+  volumes:
+    - photos:/app/data/storage
+services:
+  db:
+    restart: unless-stopped
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_USER: moacut
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moacut-local-only}
+      POSTGRES_DB: moacut
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U moacut"]
+      interval: 3s
+      retries: 20
+  migrate:
+    <<: *app
+    command: [alembic, -c, backend/alembic.ini, upgrade, head]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    <<: *app
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready')"]
+      interval: 10s
+      retries: 6
+  worker:
+    <<: *app
+    restart: unless-stopped
+    command: [python, -m, app.worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  web:
+    image: moacut-web:${MOACUT_IMAGE_TAG:-local}
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: infra/frontend.Dockerfile
+    ports: ["8080:80"]
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  postgres:
+  photos:

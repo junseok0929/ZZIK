@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "fixtures": {
+    "be2d87bc0535798e7ee3d5caa2df51ee2a92b188fad7380ab087ff79852bf5b9": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "바다"
+      ]
+    },
+    "1c145d97fa7b70e05e5c35b78873781e11d6fd56e3a6a75ef9b758a00df7053f": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.28,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "카페"
+      ]
+    },
+    "e2da19c17b7e46cbf3e7bad757ffb3a11cf40325d5812bf1daa70ccab134f8ac": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.28,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.5,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "서연",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.72,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "유진",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "바다"
+      ]
+    },
+    "ee6dd8f895dd6e29ebaff8eb02e0a088f118119bc37d2d698e2f789a862a50e6": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "여행"
+      ]
+    },
+    "4ebf757f7223682794f19d174ffe1072df82a1953c9925eeb00b40accbb54874": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.28,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.5,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "서연",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.72,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "유진",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "음식",
+        "카페"
+      ]
+    },
+    "89f84e77da04b36e621ac678bab244af88c59251e86893d054e0beacefc8bb82": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "바다"
+      ]
+    },
+    "78b9aac913c177991068afb13da470424a3bae3b3e69f637bf7625529dbf57cb": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "카페"
+      ]
+    },
+    "aa830b508721278f6743247fa855b47ffa7fe0a0040bf489b3c83e675f8998e9": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "꽃",
+        "바다"
+      ]
+    },
+    "4f22b00f01129b7cd2fe4aa665b93bb27f90ad02663d649c75fe6a6c4173f57c": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "야경"
+      ]
+    },
+    "64e9994d02b9a00dd9295c54fa6f990454b16aafee040b98fec10ffb2161104b": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "꽃",
+        "바다"
+      ]
+    },
+    "63b1e6493816166439f6efd536263afd677586dc62b9e92e8bf0970d3188c9ac": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "서연",
+          "similarity": 99.0
+        },
+        {
+          "box": {
+            "left": 0.28,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "유진",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "바다"
+      ]
+    },
+    "84ec860d141b29bd02cac2663e8c10343241ce9ee07c9e73b8670d7bd2d4fe3a": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.06,
+            "top": 0.3,
+            "width": 0.18,
+            "height": 0.3
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [
+        "카페"
+      ]
+    },
+    "91f8d9376e879cc411de8c9345b2660a8cfa8ff8cc93acedeb6621db5f28fa45": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.1,
+            "top": 0.1,
+            "width": 0.8,
+            "height": 0.8
+          },
+          "person_name": "지수",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [],
+      "reference_name": "지수"
+    },
+    "3a7c7caed776d5b6779cc6777ba71bad8cc3c2971afc1f395de17c0eef3bff3a": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.1,
+            "top": 0.1,
+            "width": 0.8,
+            "height": 0.8
+          },
+          "person_name": "민지",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [],
+      "reference_name": "민지"
+    },
+    "abb7e16b1227e2008b3c84999edaeb90620570a47687a5a1a68fe0be3d140fc0": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.1,
+            "top": 0.1,
+            "width": 0.8,
+            "height": 0.8
+          },
+          "person_name": "서연",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [],
+      "reference_name": "서연"
+    },
+    "5c15fee22d20555f9dcf3e3160e6514207b448dfd690f71224656e79ff41b368": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.1,
+            "top": 0.1,
+            "width": 0.8,
+            "height": 0.8
+          },
+          "person_name": "유진",
+          "similarity": 99.0
+        }
+      ],
+      "tags": [],
+      "reference_name": "유진"
+    },
+    "9c76c0b1be31635943fb0f61bd2d6b929695bf45457952b6a943f4028e6ba697": {
+      "faces": [],
+      "tags": [
+        "노을"
+      ]
+    },
+    "8b46c7f0b2fbc21cd8fa89e21962c18e91a75cbd5a8d5eae5ad79298c7d4b952": {
+      "faces": [
+        {
+          "box": {
+            "left": 0.3,
+            "top": 0.2,
+            "width": 0.35,
+            "height": 0.6
+          },
+          "person_name": null,
+          "similarity": 0
+        }
+      ],
+      "tags": [
+        "바다"
+      ]
+    }
+  }
+}

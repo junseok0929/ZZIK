@@ -1,0 +1,10 @@
+import React, { lazy, Suspense } from 'react';
+import ReactDOM from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import App from './App';
+import './styles.css';
+const isDemo=import.meta.env.MODE==='demo';
+const DemoToolbar=lazy(()=>import('./demo/DemoToolbar'));
+if(isDemo)document.body.classList.add('demo-mode');
+const client=new QueryClient({defaultOptions:{queries:{retry:1,staleTime:15000,refetchOnWindowFocus:true}}});
+ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={client}><App/>{isDemo&&<Suspense fallback={null}><DemoToolbar/></Suspense>}</QueryClientProvider></React.StrictMode>);

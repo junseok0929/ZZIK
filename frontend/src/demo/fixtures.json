@@ -1,0 +1,145 @@
+[
+  {
+    "number": 1,
+    "width": 230,
+    "height": 186,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "바다"
+    ]
+  },
+  {
+    "number": 2,
+    "width": 237,
+    "height": 142,
+    "people": [
+      "지수",
+      "민지"
+    ],
+    "tags": [
+      "카페"
+    ]
+  },
+  {
+    "number": 3,
+    "width": 445,
+    "height": 410,
+    "people": [
+      "지수",
+      "민지",
+      "서연",
+      "유진"
+    ],
+    "tags": [
+      "바다"
+    ]
+  },
+  {
+    "number": 4,
+    "width": 235,
+    "height": 142,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "여행"
+    ]
+  },
+  {
+    "number": 5,
+    "width": 236,
+    "height": 143,
+    "people": [
+      "지수",
+      "민지",
+      "서연",
+      "유진"
+    ],
+    "tags": [
+      "음식",
+      "카페"
+    ]
+  },
+  {
+    "number": 6,
+    "width": 237,
+    "height": 158,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "바다"
+    ]
+  },
+  {
+    "number": 7,
+    "width": 237,
+    "height": 158,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "카페"
+    ]
+  },
+  {
+    "number": 8,
+    "width": 235,
+    "height": 146,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "꽃",
+      "바다"
+    ]
+  },
+  {
+    "number": 9,
+    "width": 214,
+    "height": 168,
+    "people": [
+      "민지"
+    ],
+    "tags": [
+      "야경"
+    ]
+  },
+  {
+    "number": 10,
+    "width": 216,
+    "height": 166,
+    "people": [
+      "지수"
+    ],
+    "tags": [
+      "꽃",
+      "바다"
+    ]
+  },
+  {
+    "number": 11,
+    "width": 214,
+    "height": 130,
+    "people": [
+      "서연",
+      "유진"
+    ],
+    "tags": [
+      "바다"
+    ]
+  },
+  {
+    "number": 12,
+    "width": 213,
+    "height": 168,
+    "people": [
+      "민지"
+    ],
+    "tags": [
+      "카페"
+    ]
+  }
+]

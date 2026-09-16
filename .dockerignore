@@ -1,0 +1,10 @@
+.git
+.venv
+**/node_modules
+frontend/dist
+data
+logs
+.env
+.DS_Store
+*.png
+test-results

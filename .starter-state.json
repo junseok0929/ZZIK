@@ -1,0 +1,561 @@
+{
+  "version": 1,
+  "profile": "all",
+  "source_commit": "61a01b6cc4fe0c07e795534b8b8f96188f257f2d",
+  "reference_commit": "2ffb4a96c305ccb3756c880df1460b1b969b89eb",
+  "scope": "local-fixture-rehearsal",
+  "units": [
+    {
+      "id": "infra-compose",
+      "role": 1,
+      "tasks": [
+        "M01"
+      ],
+      "path": "compose.yaml",
+      "kind": "file",
+      "template": "starter/templates/compose.yaml"
+    },
+    {
+      "id": "infra-nginx",
+      "role": 1,
+      "tasks": [
+        "M01"
+      ],
+      "path": "infra/nginx.conf",
+      "kind": "file",
+      "template": "starter/templates/nginx.conf"
+    },
+    {
+      "id": "api-albums",
+      "role": 3,
+      "tasks": [
+        "M02"
+      ],
+      "path": "backend/app/routers/albums.py",
+      "kind": "python",
+      "symbols": [
+        "timezone_name",
+        "albums",
+        "create_album",
+        "join_album",
+        "album_detail",
+        "album_patch",
+        "rotate_invite",
+        "delete_album",
+        "remove_member"
+      ]
+    },
+    {
+      "id": "api-people",
+      "role": 3,
+      "tasks": [
+        "M03"
+      ],
+      "path": "backend/app/routers/people.py",
+      "kind": "python",
+      "symbols": [
+        "find_person",
+        "list_people",
+        "add_person",
+        "patch_person",
+        "accept_person_link",
+        "delete_person",
+        "person_reference"
+      ]
+    },
+    {
+      "id": "api-photos",
+      "role": 3,
+      "tasks": [
+        "M04",
+        "M06",
+        "M07",
+        "M08",
+        "M12",
+        "M16"
+      ],
+      "path": "backend/app/routers/photos.py",
+      "kind": "python",
+      "symbols": [
+        "upload",
+        "list_photos",
+        "photo_detail",
+        "patch_photo",
+        "delete_photo",
+        "set_people",
+        "photo_file",
+        "photo_download",
+        "album_download"
+      ]
+    },
+    {
+      "id": "api-analysis",
+      "role": 3,
+      "tasks": [
+        "M05",
+        "M14"
+      ],
+      "path": "backend/app/routers/analysis.py",
+      "kind": "python",
+      "symbols": [
+        "reanalyze",
+        "album_analysis_status",
+        "reanalyze_album_failures",
+        "recommendations"
+      ]
+    },
+    {
+      "id": "api-groups",
+      "role": 3,
+      "tasks": [
+        "M15"
+      ],
+      "path": "backend/app/routers/groups.py",
+      "kind": "python",
+      "symbols": [
+        "group_dict",
+        "get_group",
+        "face_groups",
+        "analyze_face_groups",
+        "apply_group_person",
+        "patch_group",
+        "merge_groups",
+        "split_group"
+      ]
+    },
+    {
+      "id": "upload-jobs",
+      "role": 3,
+      "tasks": [
+        "M04",
+        "M05"
+      ],
+      "path": "backend/app/photo_operations.py",
+      "kind": "python",
+      "symbols": [
+        "upload_photo",
+        "queue_failed_analysis"
+      ]
+    },
+    {
+      "id": "worker-publish",
+      "role": 3,
+      "tasks": [
+        "M05",
+        "M08"
+      ],
+      "path": "backend/app/worker.py",
+      "kind": "python",
+      "symbols": [
+        "_apply_result",
+        "process_claim"
+      ]
+    },
+    {
+      "id": "vision",
+      "role": 4,
+      "tasks": [
+        "M03",
+        "M05"
+      ],
+      "path": "backend/app/analysis.py",
+      "kind": "python",
+      "symbols": [
+        "fixture_entry",
+        "rekognition_client",
+        "aws_error",
+        "analysis_bytes",
+        "box_dict",
+        "box_iou",
+        "validate_reference",
+        "analyze",
+        "_analyze_aws"
+      ]
+    },
+    {
+      "id": "face-grouping",
+      "role": 4,
+      "tasks": [
+        "M15"
+      ],
+      "path": "backend/app/grouping.py",
+      "kind": "python",
+      "symbols": [
+        "collection_id",
+        "group_photo",
+        "sync_group_people",
+        "cleanup_external"
+      ]
+    },
+    {
+      "id": "metadata-quality",
+      "role": 4,
+      "tasks": [
+        "M13",
+        "M14"
+      ],
+      "path": "backend/app/image_service.py",
+      "kind": "python",
+      "symbols": [
+        "_metadata",
+        "quality_metrics",
+        "similar_groups"
+      ]
+    },
+    {
+      "id": "location",
+      "role": 4,
+      "tasks": [
+        "M13"
+      ],
+      "path": "backend/app/worker.py",
+      "kind": "python",
+      "symbols": [
+        "reverse_geocode"
+      ]
+    },
+    {
+      "id": "api-versions",
+      "role": 5,
+      "tasks": [
+        "M09",
+        "M10",
+        "M11",
+        "M12"
+      ],
+      "path": "backend/app/routers/versions.py",
+      "kind": "python",
+      "symbols": [
+        "versions",
+        "create_version",
+        "preview",
+        "version_file",
+        "request_review",
+        "approve",
+        "revoke_approval",
+        "set_final"
+      ]
+    },
+    {
+      "id": "api-collaboration",
+      "role": 5,
+      "tasks": [
+        "M17"
+      ],
+      "path": "backend/app/routers/collaboration.py",
+      "kind": "python",
+      "symbols": [
+        "add_comment",
+        "board",
+        "notifications",
+        "read_notification"
+      ]
+    },
+    {
+      "id": "approval-policy",
+      "role": 5,
+      "tasks": [
+        "M08",
+        "M11",
+        "M17"
+      ],
+      "path": "backend/app/services.py",
+      "kind": "python",
+      "symbols": [
+        "invalidate_photo_reviews",
+        "invalidate_person_reviews",
+        "approval_state",
+        "notify_after_commit"
+      ]
+    },
+    {
+      "id": "image-editing",
+      "role": 5,
+      "tasks": [
+        "M09",
+        "M12"
+      ],
+      "path": "backend/app/image_service.py",
+      "kind": "python",
+      "symbols": [
+        "_settings",
+        "render_image",
+        "render_cache_key"
+      ]
+    },
+    {
+      "id": "version-download",
+      "role": 5,
+      "tasks": [
+        "M12"
+      ],
+      "path": "backend/app/media.py",
+      "kind": "python",
+      "symbols": [
+        "version_file_response"
+      ]
+    },
+    {
+      "id": "ui-albums",
+      "role": 2,
+      "tasks": [
+        "M02"
+      ],
+      "path": "frontend/src/features/albums/AlbumHome.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "AlbumHome"
+      ]
+    },
+    {
+      "id": "ui-album-forms",
+      "role": 2,
+      "tasks": [
+        "M02"
+      ],
+      "path": "frontend/src/features/albums/AlbumForms.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "AlbumForm",
+        "JoinForm",
+        "Invite"
+      ]
+    },
+    {
+      "id": "ui-library",
+      "role": 2,
+      "tasks": [
+        "M06",
+        "M16"
+      ],
+      "path": "frontend/src/features/library/Library.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Library"
+      ]
+    },
+    {
+      "id": "ui-photo-info",
+      "role": 2,
+      "tasks": [
+        "M07",
+        "M08"
+      ],
+      "path": "frontend/src/features/library/PhotoInfo.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "PhotoInfo"
+      ]
+    },
+    {
+      "id": "ui-upload",
+      "role": 2,
+      "tasks": [
+        "M04"
+      ],
+      "path": "frontend/src/Upload.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Upload"
+      ]
+    },
+    {
+      "id": "ui-people",
+      "role": 2,
+      "tasks": [
+        "M03",
+        "M08"
+      ],
+      "path": "frontend/src/People.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "People"
+      ]
+    },
+    {
+      "id": "ui-album-settings",
+      "role": 2,
+      "tasks": [
+        "M02"
+      ],
+      "path": "frontend/src/AlbumSettings.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "AlbumSettings"
+      ]
+    },
+    {
+      "id": "ui-analysis",
+      "role": 2,
+      "tasks": [
+        "M05"
+      ],
+      "path": "frontend/src/AnalysisStatus.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "duration",
+        "AnalysisStatus"
+      ]
+    },
+    {
+      "id": "ui-recommendations",
+      "role": 2,
+      "tasks": [
+        "M14"
+      ],
+      "path": "frontend/src/features/curation/Recommendations.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Recommendations"
+      ]
+    },
+    {
+      "id": "ui-groups",
+      "role": 2,
+      "tasks": [
+        "M15"
+      ],
+      "path": "frontend/src/features/curation/Groups.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Groups"
+      ]
+    },
+    {
+      "id": "ui-editor",
+      "role": 5,
+      "tasks": [
+        "M09",
+        "M10",
+        "M11",
+        "M12"
+      ],
+      "path": "frontend/src/Editor.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Editor"
+      ]
+    },
+    {
+      "id": "ui-board",
+      "role": 5,
+      "tasks": [
+        "M17"
+      ],
+      "path": "frontend/src/features/collaboration/Board.tsx",
+      "kind": "typescript",
+      "symbols": [
+        "Board"
+      ]
+    }
+  ],
+  "active_units": [
+    "infra-compose",
+    "infra-nginx",
+    "api-albums",
+    "api-people",
+    "api-photos",
+    "api-analysis",
+    "api-groups",
+    "upload-jobs",
+    "worker-publish",
+    "vision",
+    "face-grouping",
+    "metadata-quality",
+    "location",
+    "api-versions",
+    "api-collaboration",
+    "approval-policy",
+    "image-editing",
+    "version-download",
+    "ui-albums",
+    "ui-album-forms",
+    "ui-library",
+    "ui-photo-info",
+    "ui-upload",
+    "ui-people",
+    "ui-album-settings",
+    "ui-analysis",
+    "ui-recommendations",
+    "ui-groups",
+    "ui-editor",
+    "ui-board"
+  ],
+  "initial_units": {
+    "compose.yaml": "ed4a552e4dc874f64eb1ca5553775a33df4720df778443419c70e2e11d385eac",
+    "infra/nginx.conf": "25f0f915f2a2c5af578f28907dd97e2750accbccba1eb624c8519c61e00d7dc8",
+    "backend/app/routers/albums.py": "f268b789fcb69633f4647606ea924c207e6f901d34499b6ceea76d8f14c4f787",
+    "backend/app/routers/people.py": "ec2ee1589d5dcf40d43c2ba3ac1605058331926020559982bbe773de79e428d2",
+    "backend/app/routers/photos.py": "06737f52954673cb1db98d74b43fdb23e1d1da671dbcf283c531c537040ccb79",
+    "backend/app/routers/analysis.py": "a9996748532316c43dae7e66c4b8087ddc9bc7eae7170ce1f17b72eadfc894b2",
+    "backend/app/routers/groups.py": "72682d7c68f9182df1be5641cbdc51ab3c225b910b672af44dfe9048107d4cc0",
+    "backend/app/photo_operations.py": "2892492d6efb03cfd34fdc00abaa404520efd050b2ade75a545be3c4b4061164",
+    "backend/app/worker.py": "326a6c8522da2a3562993833b9abaea48d3f17baf2635c7569c02989c6d8ab81",
+    "backend/app/analysis.py": "a9865eb1c0d5b4102edf52909921475a443b930dd74465800af62998b3441393",
+    "backend/app/grouping.py": "dd6e736e95a5d1e158a658f577993cede00e279713bc19204c37f8f4aaf18575",
+    "backend/app/image_service.py": "4c145e011a7e08ae902adaadef7d780f8e43addaf0abb94403030ccb8e9178f0",
+    "backend/app/routers/versions.py": "6f2163624e6c084ced5d0558c9871a3996ca92ee328e5ac1b36e2cf6a3611efb",
+    "backend/app/routers/collaboration.py": "f7bf5400530547752f9f4a6c92b952bee66b6773976000a92dfca8245c4db700",
+    "backend/app/services.py": "be93aa847b3d0ef40e3ebbcd56c11fc4928193d49853c35c201e44634ac8ea30",
+    "backend/app/media.py": "e2d8483dea8cbef2b4e27fd8771b6c2935598094b4509b5898f0e130b1be1171",
+    "frontend/src/features/albums/AlbumHome.tsx": "d671cfa437073ec0bd210b43ad2fd65a59a8af655555f5ac71c3089d1e530d38",
+    "frontend/src/features/albums/AlbumForms.tsx": "aa2fa668ef94d1e28653bd6d816d49ae882eb104b4217a194bacb762232721c1",
+    "frontend/src/features/library/Library.tsx": "7ac0fda9f5db115585083990466904579c4ea4b1c2d5792d8d1d296eebe3b5ba",
+    "frontend/src/features/library/PhotoInfo.tsx": "149e806ab752516f3da2344f80719edd206bddaac7e98d309433bf47e1618a64",
+    "frontend/src/Upload.tsx": "df627d6594865980813a0a170bfd02fac15e969d62a9fc67641a118254556b84",
+    "frontend/src/People.tsx": "26881a5c7a36576d0b2f1686b28e98a050aa3f63fc2b78fb8dfaba6baea2daac",
+    "frontend/src/AlbumSettings.tsx": "1980ccb7c11fd79ff5acd1dd2696c7ec11f348a86caac15534a57cc492cd72fa",
+    "frontend/src/AnalysisStatus.tsx": "62d4052a16b3ad5e256705900ff1b9fad9212b679d35de6c0e8545c8e1206da1",
+    "frontend/src/features/curation/Recommendations.tsx": "8d7ee7a94b2c0ca5812f530e844c16a4c7466532368573937d3d1c59f36de6a5",
+    "frontend/src/features/curation/Groups.tsx": "87cc5747dcf94f7795634c143c0c35eccea2e59993f032465bd64d54b193a30b",
+    "frontend/src/Editor.tsx": "af4033ad545de103e019fe1490686f0fe3bcfa05009b23ad0b0065e33021cff0",
+    "frontend/src/features/collaboration/Board.tsx": "5f263fcd99b451ca46c750c93add36f84674c2a83d434cb2c4fe4a26c094f831"
+  },
+  "protected": {
+    "backend/alembic/env.py": "ee5c208cd8e531564bbe62e89f21d95729280a9b11120ac54cec9a9db1193fe4",
+    "backend/alembic/versions/0001_initial.py": "bb4163e993319b8b53c8aaf93410156381fb168961d6ad551fe80b56128c989e",
+    "backend/alembic/versions/0002_cleanup_intents.py": "23c4bd524bf43f066a55435e21613b710e6767bb63a04ee7e6d1baadb6d6d43e",
+    "backend/app/models.py": "d87409647153f4b8a345e000d7f00857c508d5d5306b719ba8f89bcfce0f1431",
+    "backend/app/responses.py": "580152b0a441de19fbfd39a88ff94fc303453cde49e5fa0e74374a3976744292",
+    "backend/app/schemas.py": "478a8b9751304f8c6af88bf618bb17c7be659c1d45c54272dd604fe6d6f56160",
+    "backend/tests/test_album_management.py": "55d0b499b486a7750de4d698214d01b15e425dcfb620fb96cbebfaeb94a65fea",
+    "backend/tests/test_analysis_worker.py": "61c1924c5f0ba35a821a89b183d59801234033f37975ca4fe130f6b272964102",
+    "backend/tests/test_api_integration.py": "2129025384d297039a92fa9ae9502db5a153980058631d10ff2f1fb0ecb9baa7",
+    "backend/tests/test_aws_validation.py": "c3605f919080ca52643096ab6f1aa750ce12dac43e1f821cf81e2b187d9576c6",
+    "backend/tests/test_aws_validation_container.py": "f4dc8453e6348d22de8ea9c5de064a991aaafbfd795d972304d9bd83270e4e07",
+    "backend/tests/test_backup_restore.py": "bf34e8ed5f146caa42a645d88a8f3296ab5bfb614e66e40cebfb36849e1bfefc",
+    "backend/tests/test_connections.py": "92fd0c183f13dd0275f506dabd4a731b9882d41a4d222ce80161cfb519502fda",
+    "backend/tests/test_harness_runner.py": "d847ae5b08cb57071a9ff0eeb32c44149d023fe59cfd0f0cc84e8b8351e00fae",
+    "backend/tests/test_image_rendering.py": "44cccc42fe1168c7ff86866b74efff7c56d6d2fa25ea158fe0125b86b53bfe6b",
+    "backend/tests/test_response_contracts.py": "8ec1f05309c834a46433b1d509db4d2fb2accd8b2e14e2006e535cf3c7cbec4f",
+    "backend/tests/test_starter.py": "bad12d2d6294bc440163d9a6366111b781f1ff5ee03256eebe09478ce53b9487",
+    "contracts/README.md": "5bfdcc06ed3bbb4081ac6e6329d2476999605a177b63ba7a005aae6936ec1f50",
+    "contracts/codegen/generate.mjs": "21133f625aab0ac1400540fc1c0147d23853162ce34629afefb6e67bf2859c9f",
+    "contracts/codegen/package-lock.json": "9a3055bc0d14d8422c3300b03ac5319ba5ab1474757e72c669d1cfb8e6bfdfe6",
+    "contracts/codegen/package.json": "7a322499185b6341a02fbe9865a205f166a790fd42ab2cffbe400fe5c45bafe8",
+    "contracts/codegen/starter.mjs": "426cc45595209a7e4e2f094d294a7cfb2138149b6fa411a9ffa2389f9dc7aae9",
+    "contracts/openapi.json": "11bf03b121d6cd34122b9428180f97d92f23e32af614122534a5b55c805608f0",
+    "contracts/python-interfaces.json": "c21e6d2eda9a2c51a8b44a303158759936e40cc92e941d2265e510e8d8545dd3",
+    "frontend/e2e/desktop.spec.ts": "cdedf7325bceb19d42411f4573e52c20985a2e23da973fb5766acd6e2c346294",
+    "frontend/e2e/helpers.ts": "81061ad88d8d7004899bf9a6d1f159370aefbb8788bdb356d7a0dd3f7c792626",
+    "frontend/e2e/management.desktop.spec.ts": "f5310af231104bdf412318559bd4c23dc675bbb7f5d99448b0789142e5668219",
+    "frontend/e2e/mobile.spec.ts": "acc352dc2dcb2e01a6f08598c9c1d7edc6cd2ce078a126a0cfa3766df05322ad",
+    "frontend/src/generated/api.d.ts": "d33507582af04d9d438e0003de7105be4781e09c49505b083ed0d74070c9c51c",
+    "scripts/check_harness.py": "4f62a854576532995e262f3c7abb8ffeef5117c5047dddec421177ccf6a5163a",
+    "scripts/run_integration.py": "8f3ec4309177972de4707be893a0dda8220eb1b1c674f8ef4989213e3cfc15c5",
+    "scripts/starter.py": "7412bdcb4749ecbfa137802a4b89880097e1579fa3a39b913690e72d8055ad1d",
+    "scripts/verify_backup_restore.py": "2920b562d34ec6cd581c2462718762f222164851a5fbf26657cc740d437e1b46",
+    "scripts/verify_restart.py": "e7b38481f83f606babd2b357382d79b42c7ea2646c4d4a591a1f861d38397b37",
+    "starter/README.md": "f0811d15b998fc66217ce6cf6d488ecb8ffb549110b9cdc76fecb22b6d5af262",
+    "starter/START_HERE.md": "641105d677ebe519498ed8b22a7273009789e6d3211b4e89b939ef4010bf1ed1",
+    "starter/manifest.json": "973f1d111b72accbefdbc3d978d6f2fb5db97cad5a5d0c7fd1efca89529987cc",
+    "starter/roles/01.md": "88c70632a74e9bf9da89535e02688dd56486957f1b0d1058d53ab31ba586e12f",
+    "starter/roles/02.md": "cb3eba7c7e53252e77201f81a266b81cd24f2ffada9f06fee8930b9eab3478b2",
+    "starter/roles/03.md": "9585285df9f3154d9f507805ce7df7c7695d344efbf11a780f2bc5ba5bbbc540",
+    "starter/roles/04.md": "a0b720b8f1c0450ab082e3d1d2e42265bf870e21860646c54bd8981a5e6325d0",
+    "starter/roles/05.md": "9d37f257f3133f9712f88930dc9d0b1c2edcc3c0cba21539b3e42aae58d1e8a9",
+    "starter/templates/ci.yml": "1ac4d4ccd6889d9d2fce1c659e1b89b7b5a2f23fbfa04b0e4823da75b1e53ab4",
+    "starter/templates/compose.yaml": "ed4a552e4dc874f64eb1ca5553775a33df4720df778443419c70e2e11d385eac",
+    "starter/templates/nginx.conf": "25f0f915f2a2c5af578f28907dd97e2750accbccba1eb624c8519c61e00d7dc8"
+  }
+}

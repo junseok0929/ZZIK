@@ -1,0 +1,18 @@
+import type { components } from './generated/api';
+type Schemas = components['schemas'];
+export type User = Schemas['UserResponse'];
+export type Person = Schemas['PersonResponse'];
+export type Album = Schemas['AlbumResponse'];
+export type PhotoDetail = Schemas['PhotoDetailResponse'];
+export type Photo = Schemas['PhotoResponse'] & Partial<Pick<PhotoDetail, 'faces' | 'versions'>>;
+export type Version = Schemas['VersionResponse'];
+export type FaceGroup = Schemas['FaceGroupResponse'];
+export type PhotoList = Schemas['PhotoListResponse'];
+export type List<T> = Omit<Schemas['PageResponse_AlbumResponse_'], 'items'> & { items: T[] };
+export type AnalysisStatus = Schemas['AnalysisStatusResponse'];
+export type Session = Schemas['SessionResponse'];
+export type Board = Schemas['BoardResponse'];
+export type Recommendations = Schemas['RecommendationsResponse'];
+export type FaceGroups = Schemas['FaceGroupsResponse'];
+export type Config = Schemas['ConfigResponse'];
+export type Notice = Schemas['NotificationResponse'];

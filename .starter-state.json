@@ -1,7 +1,7 @@
 {
   "version": 1,
   "profile": "all",
-  "source_commit": "61a01b6cc4fe0c07e795534b8b8f96188f257f2d",
+  "source_commit": "e63f0613bfc90ba172dc0a5c3403b75c2d2970fb",
   "reference_commit": "2ffb4a96c305ccb3756c880df1460b1b969b89eb",
   "scope": "local-fixture-rehearsal",
   "units": [
@@ -546,14 +546,14 @@
     "scripts/starter.py": "7412bdcb4749ecbfa137802a4b89880097e1579fa3a39b913690e72d8055ad1d",
     "scripts/verify_backup_restore.py": "2920b562d34ec6cd581c2462718762f222164851a5fbf26657cc740d437e1b46",
     "scripts/verify_restart.py": "e7b38481f83f606babd2b357382d79b42c7ea2646c4d4a591a1f861d38397b37",
-    "starter/README.md": "f0811d15b998fc66217ce6cf6d488ecb8ffb549110b9cdc76fecb22b6d5af262",
-    "starter/START_HERE.md": "641105d677ebe519498ed8b22a7273009789e6d3211b4e89b939ef4010bf1ed1",
+    "starter/README.md": "e2b20e20834fb544aca26ad5b7541b2c8bdad5eec56e66b6aab10b9c01eb086f",
+    "starter/START_HERE.md": "94a2bd087284b3948e357646a6cd8f4ef6618665c9e39e76de6bbe3dd0a6a632",
     "starter/manifest.json": "973f1d111b72accbefdbc3d978d6f2fb5db97cad5a5d0c7fd1efca89529987cc",
     "starter/roles/01.md": "88c70632a74e9bf9da89535e02688dd56486957f1b0d1058d53ab31ba586e12f",
-    "starter/roles/02.md": "cb3eba7c7e53252e77201f81a266b81cd24f2ffada9f06fee8930b9eab3478b2",
+    "starter/roles/02.md": "b60b1fdd016ebda843d21ec8f4dad8a79ce2dc2c1e4f5332118cd1d4ab91c5df",
     "starter/roles/03.md": "9585285df9f3154d9f507805ce7df7c7695d344efbf11a780f2bc5ba5bbbc540",
-    "starter/roles/04.md": "a0b720b8f1c0450ab082e3d1d2e42265bf870e21860646c54bd8981a5e6325d0",
-    "starter/roles/05.md": "9d37f257f3133f9712f88930dc9d0b1c2edcc3c0cba21539b3e42aae58d1e8a9",
+    "starter/roles/04.md": "1de5ef9a3a6f2b48bab78571d02c91dcf9f86dd572721b92af3fe85e919aad55",
+    "starter/roles/05.md": "665c96525a2519cd81ca89787fe5376880e97c5dced337abe2a3175e34fcd150",
     "starter/templates/ci.yml": "1ac4d4ccd6889d9d2fce1c659e1b89b7b5a2f23fbfa04b0e4823da75b1e53ab4",
     "starter/templates/compose.yaml": "ed4a552e4dc874f64eb1ca5553775a33df4720df778443419c70e2e11d385eac",
     "starter/templates/nginx.conf": "25f0f915f2a2c5af578f28907dd97e2750accbccba1eb624c8519c61e00d7dc8"

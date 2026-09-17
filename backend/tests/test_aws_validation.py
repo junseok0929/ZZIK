@@ -230,3 +230,47 @@ def test_live_runner_uses_real_adapter_contract_without_context_manager_clients(
     else:
         assert report['rekognition_calls'] == 4 and report['status'] == 'passed'
         assert report['photo_analysis_verified']
+
+
+@pytest.mark.parametrize('method,arn,code', [
+    ('env', 'arn:aws:sts::123456789012:assumed-role/ExpectedRole/session', 'EC2_INSTANCE_ROLE_REQUIRED'),
+    ('shared-credentials-file', '', 'EC2_INSTANCE_ROLE_REQUIRED'),
+    (None, '', 'EC2_INSTANCE_ROLE_REQUIRED'),
+    ('iam-role', 'arn:aws:sts::123456789012:assumed-role/OtherRole/session', 'EC2_ROLE_MISMATCH'),
+    ('iam-role', 'arn:aws:iam::123456789012:user/ExpectedRole', 'EC2_ROLE_MISMATCH'),
+])
+def test_role_gate_blocks_s3_before_wrong_credentials_or_identity(dataset, monkeypatch, capsys, method, arn, code):
+    services = []
+    class Identity:
+        def get_caller_identity(self): return {'Arn': arn}
+        def close(self): pass
+    def client(service, **kw):
+        services.append(service)
+        assert service == 'sts', 'Wrong role must never reach storage or analysis'
+        return Identity()
+    monkeypatch.setattr(boto3, 'Session', lambda **kw: SimpleNamespace(
+        get_credentials=lambda: SimpleNamespace(method=method) if method else None, client=client))
+    assert check.main(['--manifest', str(dataset[0]), '--execute', '--bucket', 'private',
+                       '--expected-role', 'ExpectedRole']) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report['code'] == code and not report['photo_analysis_verified']
+    assert services == (['sts'] if method == 'iam-role' else [])
+    assert '123456789012' not in json.dumps(report)
+
+
+def test_correct_instance_role_reaches_storage(dataset, monkeypatch, capsys):
+    class Client:
+        def get_caller_identity(self): return {'Arn': 'arn:aws:sts::123456789012:assumed-role/ExpectedRole/i-123'}
+        def close(self): pass
+    monkeypatch.setattr(boto3, 'Session', lambda **kw: SimpleNamespace(
+        get_credentials=lambda: SimpleNamespace(method='iam-role'), client=lambda *a, **kw: Client()))
+    calls = []
+    def storage_probe(*a):
+        calls.append(True)
+        return {'status': 'failed', 'code': 'TEST_STORAGE_STOP', 'cleanup': 'not_needed'}
+    monkeypatch.setattr(check, 'storage_probe', storage_probe)
+    assert check.main(['--manifest', str(dataset[0]), '--execute', '--bucket', 'private',
+                       '--expected-role', 'ExpectedRole']) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report['identity_verified'] and report['instance_role_verified'] and calls == [True]
+    assert '123456789012' not in json.dumps(report)

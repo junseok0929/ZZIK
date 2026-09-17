@@ -43,6 +43,10 @@
 
 이 단계에서는 RDS·새 IAM 역할·공개 보안 그룹 규칙·로드밸런서를 만들지 않는다. 역할 기반 검사 성공 후 별도 단계에서 전체 서버와 DB를 배치한다.
 
+## 컨테이너로 인계하기
+
+검증 스크립트·합성 PNG·잠긴 Python 의존성을 함께 배포하는 [컨테이너 실행 키트](AWS_VALIDATION_CONTAINER.md)를 추가했다. `plan`은 네트워크 없이 실행하며, EC2 `execute`는 자격 증명 공급자와 지정 역할을 확인한 뒤 S3/분석에 접근한다. 실제 EC2 실행은 여전히 미검증이다.
+
 ## 같은 검사를 재현하기
 
 검사기는 [scripts/validate_aws.py](../scripts/validate_aws.py), 합성 사진과 정답표는 [backend/fixtures/aws-validation](../backend/fixtures/aws-validation/README.md)에 있다. 의존성은 기존 `backend/requirements.lock`을 사용한다.

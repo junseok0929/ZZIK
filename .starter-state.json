@@ -1,7 +1,7 @@
 {
   "version": 1,
   "profile": "all",
-  "source_commit": "e63f0613bfc90ba172dc0a5c3403b75c2d2970fb",
+  "source_commit": "23e778478406d8dbec60d8ec0f6659270e4b7e05",
   "reference_commit": "2ffb4a96c305ccb3756c880df1460b1b969b89eb",
   "scope": "local-fixture-rehearsal",
   "units": [
@@ -546,8 +546,8 @@
     "scripts/starter.py": "7412bdcb4749ecbfa137802a4b89880097e1579fa3a39b913690e72d8055ad1d",
     "scripts/verify_backup_restore.py": "2920b562d34ec6cd581c2462718762f222164851a5fbf26657cc740d437e1b46",
     "scripts/verify_restart.py": "e7b38481f83f606babd2b357382d79b42c7ea2646c4d4a591a1f861d38397b37",
-    "starter/README.md": "e2b20e20834fb544aca26ad5b7541b2c8bdad5eec56e66b6aab10b9c01eb086f",
-    "starter/START_HERE.md": "94a2bd087284b3948e357646a6cd8f4ef6618665c9e39e76de6bbe3dd0a6a632",
+    "starter/README.md": "c3a034b55e7022ec7981a9a918471a5b8905245828656cb749439738a98a31b8",
+    "starter/START_HERE.md": "994ecb3f94afc89d3b6eb572656b93cc6151d5ebbe6458ded6dcf56b7696a215",
     "starter/manifest.json": "973f1d111b72accbefdbc3d978d6f2fb5db97cad5a5d0c7fd1efca89529987cc",
     "starter/roles/01.md": "88c70632a74e9bf9da89535e02688dd56486957f1b0d1058d53ab31ba586e12f",
     "starter/roles/02.md": "b60b1fdd016ebda843d21ec8f4dad8a79ce2dc2c1e4f5332118cd1d4ab91c5df",

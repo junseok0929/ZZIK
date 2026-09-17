@@ -58,17 +58,40 @@ def test_dataset_rejects_leakage_escape_and_bad_labels(dataset, case, code):
     assert exc.value.code == code
 
 
-def test_report_never_overwrites_input_and_redacts_errors(dataset, monkeypatch, capsys):
+@pytest.mark.parametrize('destination', ['input', 'directory', 'broken_link', 'invalid_parent'])
+def test_unusable_report_stops_before_aws(dataset, monkeypatch, capsys, destination):
     path, _ = dataset
     original = path.read_bytes()
-    def fail(*args):
+    report = path
+    if destination == 'directory':
+        report = path.parent
+    elif destination == 'broken_link':
+        report = path.parent / 'report.json'
+        report.symlink_to(path.parent / 'absent.json')
+    elif destination == 'invalid_parent':
+        report = path / 'report.json'
+    monkeypatch.setattr(check, 'execute', lambda *a, **kw: pytest.fail('Unusable report reached AWS'))
+    assert check.main(['--manifest', str(path), '--execute', '--bucket', 'test-private', '--report', str(report)]) == 1
+    output = json.loads(capsys.readouterr().out)
+    assert output == {'status': 'failed', 'code': 'REPORT_WRITE_FAILED'}
+    assert path.read_bytes() == original
+    assert not (path.parent / 'absent.json').exists()
+
+
+def test_private_report_preserves_redacted_failure(dataset, monkeypatch, capsys):
+    path, _ = dataset
+    report = path.parent / 'reports' / 'failed.json'
+    attempted = []
+    def fail(*args, **kwargs):
+        attempted.append(True)
         raise RuntimeError('SECRET_PASSWORD https://signed.example/?SECRET_TOKEN')
     monkeypatch.setattr(check, 'execute', fail)
-    assert check.main(['--manifest', str(path), '--execute', '--bucket', 'test-private', '--report', str(path)]) == 1
+    assert check.main(['--manifest', str(path), '--execute', '--bucket', 'test-private', '--report', str(report)]) == 1
     output = capsys.readouterr().out
     assert 'SECRET_' not in output and 'signed.example' not in output
-    assert json.loads(output)['code'] == 'REPORT_WRITE_FAILED'
-    assert path.read_bytes() == original
+    assert json.loads(output)['code'] == 'AWS_OR_LOCAL_OPERATION_FAILED'
+    assert attempted == [True] and report.read_text() == output
+    assert report.stat().st_mode & 0o777 == 0o600
 
 
 def test_metrics_keep_failed_photos_in_denominator():

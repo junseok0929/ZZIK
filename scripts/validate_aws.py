@@ -7,7 +7,7 @@ run uses an existing private unversioned test bucket and removes only its own ke
 from __future__ import annotations
 
 import argparse
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, ExitStack
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -253,6 +253,32 @@ def main(argv=None):
     parser.add_argument('--report', type=Path, help='Optional local report; never contains signed URLs or credential values.')
     parser.add_argument('--expected-role', help='Require EC2 metadata credentials and this STS role name before any S3/analysis calls.')
     args = parser.parse_args(argv)
+    report = None
+    try:
+        with ExitStack() as outputs:
+            destination = None
+            if args.report:
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                # Reserve the destination before any paid calls or remote writes.
+                # O_EXCL also rejects existing files and dangling symlinks.
+                fd = os.open(args.report, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                destination = outputs.enter_context(os.fdopen(fd, 'w'))
+            report = run_validation(args)
+            rendered = json.dumps(report, ensure_ascii=False, indent=2) + '\n'
+            if destination:
+                destination.write(rendered)
+                destination.flush()
+    except OSError:
+        failure = {'status': 'failed', 'code': 'REPORT_WRITE_FAILED'}
+        if report is not None:
+            failure['result'] = report
+        print(json.dumps(failure, ensure_ascii=False))
+        return 1
+    print(rendered, end='')
+    return 0 if report['status'] in {'planned', 'passed'} else 1
+
+
+def run_validation(args):
     report = {'schema_version': 1, 'run_id': uuid.uuid4().hex, 'created_at': datetime.now(timezone.utc).isoformat(),
               'status': 'blocked', 'mode': 'live' if args.execute else 'plan', 'aws_requested': args.execute,
               'photo_analysis_verified': False, 'rekognition_calls': 0, 'photos': []}
@@ -273,19 +299,7 @@ def main(argv=None):
             report['status'] = 'planned'
     except Exception as exc:
         report['code'] = error_code(exc)
-    rendered = json.dumps(report, ensure_ascii=False, indent=2) + '\n'
-    if args.report:
-        try:
-            args.report.parent.mkdir(parents=True, exist_ok=True)
-            # Never overwrite an earlier run, a source image, or the input manifest.
-            fd = os.open(args.report, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(fd, 'w') as file:
-                file.write(rendered)
-        except OSError:
-            print(json.dumps({'status': 'failed', 'code': 'REPORT_WRITE_FAILED', 'result': report}, ensure_ascii=False))
-            return 1
-    print(rendered, end='')
-    return 0 if report['status'] in {'planned', 'passed'} else 1
+    return report
 
 
 if __name__ == '__main__':

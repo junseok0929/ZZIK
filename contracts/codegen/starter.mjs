@@ -15,7 +15,7 @@ if (!names.length || new Set(names).size !== names.length) throw new Error('Inva
 const edits = names.map(name => {
   if (!nodes.has(name) || (reference && !reference.has(name))) throw new Error(`Missing function ${name}`);
   const n = nodes.get(name), r = reference?.get(name);
-  return {...n, text: r ? input.reference.slice(r.start, r.end) : `{ throw new Error(${JSON.stringify(`ZZIK_STARTER:${input.id}:${name}`)}); }`};
+  return {...n, text: r ? input.reference.slice(r.start, r.end) : `{ return ((): never => { throw new Error(${JSON.stringify(`ZZIK_STARTER:${input.id}:${name}`)}); })(); }`};
 });
 let source = input.source;
 for (const edit of edits.sort((a,b) => b.start-a.start)) source = source.slice(0,edit.start) + edit.text + source.slice(edit.end);

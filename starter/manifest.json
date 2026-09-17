@@ -366,7 +366,7 @@
   "role_checks": {
     "1": [
       "docker compose config --quiet",
-      "Docker full-stack E2E/restart (CI compose)",
+      "# Docker full-stack E2E/restart: CI compose 작업 전체 실행",
       "python scripts/verify_backup_restore.py"
     ],
     "2": [

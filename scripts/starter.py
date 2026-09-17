@@ -48,7 +48,12 @@ def python_nodes(source):
     result = {}
     for node in ast.parse(source).body:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            first, last = node.body[0], node.body[-1]
+            # FastAPI uses route docstrings in OpenAPI; retain that contract text.
+            body = node.body
+            if (len(body) > 1 and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str)):
+                body = body[1:]
+            first, last = body[0], body[-1]
             result[node.name] = (offsets[first.lineno - 1] + first.col_offset,
                                  offsets[last.end_lineno - 1] + last.end_col_offset)
     return result

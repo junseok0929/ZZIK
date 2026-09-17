@@ -17,6 +17,7 @@ def test_python_round_trip_preserves_unicode_signatures_and_other_role():
     unit = {'id': 'one', 'symbols': ['first']}
     masked, names = starter.python_edit(source, unit)
     assert names == ['first']
+    assert '"""사진"""' in masked
     assert 'def other(): return 42' in masked
     assert 'ZZIK_STARTER:one:first' in masked
     assert starter.python_edit(masked, unit, source)[0] == source

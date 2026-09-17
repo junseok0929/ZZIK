@@ -129,3 +129,5 @@ npm --prefix frontend run test:e2e
 - `preflight`는 STS와 S3 설정만 조회한다. 사진 전송·객체 생성/삭제·Rekognition·DB 접근은 하지 않는다. `preflight_passed`와 실제 저장·분석 성공을 분리했다.
 - `custom` 원격 실행은 지정 계정과 STS 계정이 일치해야 하고 S3 설정 조회에도 기대 소유자 계정을 전달한다. 잘못된 계정·버킷 설정은 쓰기 전에 거부한다.
 - 관련 로컬 테스트 53개 통과. 모의 SDK 응답으로 조회 전용 API 범위와 소유자 매개변수를 확인했다. 컨테이너 CI에 교육/다른 리전의 오프라인 plan을 추가했으며 실제 AWS 성공 증거와 구분한다.
+- `ba02e49`의 [CI 4개 모두 통과](https://github.com/seopseopi/ZZIK/actions/runs/35172041394): 백엔드 99개, 프론트, 직접 실행 통합, Compose 오프라인 plan·E2E·재시작 검증.
+- 사용자 요청으로 로컬 AWS 임시 인증 프로필 `zzik-edu`와 SDK 연결용 `zzik-sdk`를 설정하고 CLI·프로젝트 Boto3의 실제 STS 계정/사용자 확인을 통과했다. 본인 이름 기준 EC2·S3는 북버지니아 조회에서 0개였으며 새 자원은 생성하지 않았다. [인증 방식과 조회 한계](AWS_EDU_VALIDATION.md). 인증 연결 완료와 S3·Rekognition 종단 검증 완료를 구분한다.

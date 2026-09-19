@@ -16,7 +16,7 @@
                          └─ Rekognition (HTTPS, NAT 경유)
 ```
 
-새 VPC를 사용하면 기존 실습 환경과 주소 충돌을 피하기 쉽다. 아래 CIDR은 새 VPC의 제안값이며 기존 네트워크와 겹치면 변경한다.
+교육 담당자가 제공한 IAM 로그인 경로로 접속한다. 계정 정보와 비밀번호는 저장소에 기록하지 않는다. 먼저 기존 VPC·서브넷·보안 그룹·IAM 역할·DB와 교육용 AMI를 확인한다. 다른 참가자의 리소스는 수정하지 않는다. 제공된 네트워크가 있다면 그 구성을 우선 확인하고, 새 VPC가 필요할 때 아래 제안값을 사용한다. CIDR은 연결할 기존 네트워크와 겹치면 변경한다.
 
 ## 1. VPC: 콘솔에서 먼저 준비
 
@@ -59,7 +59,7 @@ App EC2에는 EC2 신뢰 관계를 가진 인스턴스 역할을 연결한다. [
 | 항목 | Web EC2 | App EC2 |
 |---|---|---|
 | 이름 | zzik-web | zzik-app |
-| AMI | 사용자 선택 | 사용자 선택 |
+| AMI | 교육 문서 지정 AMI를 직접 선택 | 교육 문서 지정 AMI를 직접 선택 |
 | 검증할 실행 환경 | Nginx, Node.js 24+ | Python 3.13, systemd |
 | 인스턴스 유형 | 교육 계정 허용 범위에서 선택 | 이미지 처리 메모리 고려해 선택 |
 | VPC | zzik-lab | zzik-lab |
@@ -70,7 +70,7 @@ App EC2에는 EC2 신뢰 관계를 가진 인스턴스 역할을 연결한다. [
 | IMDS | v2 필수 | v2 필수 |
 | 키 페어·EBS | 직접 선택 | 직접 선택 |
 
-AMI가 정해지면 그 배포판에 맞는 설치 명령을 사용한다. Amazon Linux 2023을 선택할 경우 시스템 `python3`는 3.9이므로 `python3.13`을 별도로 설치하고 명시적으로 실행해야 한다. 시스템 Python 링크를 바꾸지 않는다. [AL2023 Python](https://docs.aws.amazon.com/linux/al2023/ug/python.html). Node.js 24도 최신 AL2023 패키지에 포함되어 있다. [공식 릴리스](https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.9.20251110.html).
+교육 문서의 AMI 이름으로 검색하고 AMI ID·소유자·상태·아키텍처를 확인한 뒤 사용자가 선택한다. 이름만으로 OS나 설치된 패키지를 단정하지 않는다. 지정 AMI가 보이지 않으면 다른 이미지로 대체하지 말고 공유 여부를 확인한다. 서버 접속 후 배포판과 Python·Node.js 버전을 확인하여 설치 명령을 정한다. Amazon Linux 2023 기반일 경우 시스템 `python3`는 3.9이므로 `python3.13`을 별도로 설치하고 명시적으로 실행해야 한다. 시스템 Python 링크를 바꾸지 않는다. [AL2023 Python](https://docs.aws.amazon.com/linux/al2023/ug/python.html). Node.js 24도 최신 AL2023 패키지에 포함되어 있다. [공식 릴리스](https://docs.aws.amazon.com/linux/al2023/release-notes/relnotes-2023.9.20251110.html).
 
 App 관리 접속은 Session Manager를 우선 확인한다. 없다면 Web 경유 SSH ProxyJump를 사용하되 개인키는 로컬 PC에 보관한다. 키를 Web 서버에 복사하지 않는다. NAT와 IAM 역할이 갖춰져도 SSM Agent가 설치·실행되어 있어야 한다.
 

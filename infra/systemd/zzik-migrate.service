@@ -1,0 +1,18 @@
+[Unit]
+Description=ZZIK database migration (run explicitly before starting the app)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=zzik
+Group=zzik
+WorkingDirectory=/opt/zzik
+EnvironmentFile=/etc/zzik/runtime.env
+ExecStart=/opt/zzik/.venv/bin/alembic -c /opt/zzik/backend/alembic.ini upgrade head
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StandardOutput=journal
+StandardError=journal

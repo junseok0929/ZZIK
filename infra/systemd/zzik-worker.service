@@ -2,7 +2,7 @@
 # The durable analysis worker. It leases jobs from PostgreSQL, so more than one
 # instance may run; each additional host needs its own unit and the same env file.
 Description=ZZIK analysis worker
-Documentation=https://github.com/seopseopi/ZZIK/blob/main/docs/AWS_DEPLOYMENT.md
+Documentation=https://github.com/junseok0929/ZZIK/blob/feat/smart-curation/docs/AWS_DEPLOYMENT.md
 After=network-online.target zzik-api.service
 Wants=network-online.target
 
@@ -10,7 +10,8 @@ Wants=network-online.target
 Type=exec
 User=zzik
 Group=zzik
-WorkingDirectory=/opt/zzik/backend
+WorkingDirectory=/opt/zzik
+Environment=PYTHONPATH=/opt/zzik/backend
 EnvironmentFile=/etc/zzik/runtime.env
 ExecStart=/opt/zzik/.venv/bin/python -m app.worker
 # SIGTERM lets the current job finish or release its lease instead of stranding it.

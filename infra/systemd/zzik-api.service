@@ -1,7 +1,7 @@
 [Unit]
 # FastAPI on the private App EC2. Nginx on the Web EC2 proxies /api here.
 Description=ZZIK API (FastAPI)
-Documentation=https://github.com/seopseopi/ZZIK/blob/main/docs/AWS_DEPLOYMENT.md
+Documentation=https://github.com/junseok0929/ZZIK/blob/feat/smart-curation/docs/AWS_DEPLOYMENT.md
 After=network-online.target
 Wants=network-online.target
 
@@ -12,7 +12,7 @@ Group=zzik
 WorkingDirectory=/opt/zzik
 # Secrets stay outside the repository; the file should be chmod 600 and owned by root.
 EnvironmentFile=/etc/zzik/runtime.env
-ExecStart=/opt/zzik/.venv/bin/uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=WEB_TIER_PRIVATE_IP
+ExecStart=/opt/zzik/.venv/bin/uvicorn app.main:app --app-dir backend --host APP_TIER_PRIVATE_IP --port 8000 --proxy-headers --forwarded-allow-ips=WEB_TIER_PRIVATE_IP
 Restart=on-failure
 RestartSec=3
 TimeoutStopSec=30

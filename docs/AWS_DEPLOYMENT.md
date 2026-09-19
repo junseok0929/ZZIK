@@ -39,6 +39,8 @@ docker compose logs --tail=100 api worker
 
 기본 배치는 **HTTPS 진입점 → Web EC2/Nginx → private App EC2/FastAPI·worker → private RDS PostgreSQL + 비공개 S3**다. AWS 리소스·도메인·HTTPS 인증서·네트워크는 별도로 준비해야 한다. 이 저장소는 자동으로 EC2/RDS/버킷을 생성하는 IaC를 포함하지 않는다.
 
+컨테이너 없이 App EC2에 직접 배치하려면 `infra/systemd/`의 유닛과 절차를 사용한다. 두 방식 모두 실제 AWS 환경에서 실행해 검증하지는 않았다.
+
 - Web EC2는 HTTPS 진입점에서 오는 웹 트래픽만 받는다. API 포트 8000은 Web EC2 보안 그룹에서만 접근하게 한다.
 - RDS 5432는 App EC2 보안 그룹에서만 접근하도록 하고 public access를 끈다.
 - S3 Block Public Access를 유지한다. 서버 역할에 필요한 prefix 접근만 허용한다. 서명 URL 만료는 기본 120초다.
@@ -147,7 +149,7 @@ docker compose start api worker
 MOACUT_IMAGE_TAG=release-1 docker compose up -d --no-build --no-deps api worker web
 ```
 
-현재 스키마는 `0002`까지 있으며 `0002`는 지연 정리 의도의 `not_before` 열을 추가한다. 현재 앱은 이 열을 사용한다. 스키마를 되돌릴 때는 쓰기를 멈추고 백업 후, 이전 앱 버전과 함께 검토한 migration만 적용한다.
+현재 스키마는 `0003`까지 있다. `0002`는 지연 정리 의도의 `not_before` 열을, `0003`은 멤버 라벨 테이블(`labels`, `photo_labels`)과 `photos.best_shot_score` 열을 추가하고 이미 저장된 품질 지표에서 점수를 채운다. 현재 앱은 이 열들을 사용한다. 스키마를 되돌릴 때는 쓰기를 멈추고 백업 후, 이전 앱 버전과 함께 검토한 migration만 적용한다.
 
 ```sh
 docker compose stop api worker

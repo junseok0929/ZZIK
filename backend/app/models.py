@@ -82,6 +82,8 @@ class Photo(Base):
     unknown_faces: Mapped[int] = mapped_column(Integer, default=0)
     tags: Mapped[list] = mapped_column(JSON, default=list)
     quality: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Comparative best-shot signal derived from quality/faces; not an absolute quality promise.
+    best_shot_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     purpose: Mapped[str] = mapped_column(String(40), default='undecided')
     note: Mapped[str] = mapped_column(Text, default='')
     selected: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -187,6 +189,23 @@ class GroupFace(Base):
     external_face_id: Mapped[str] = mapped_column(String(255), unique=True)
     box: Mapped[dict] = mapped_column(JSON, default=dict)
     similarity: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+class Label(Base):
+    """A member-authored album label; independent of automatic scene tags."""
+    __tablename__ = 'labels'
+    __table_args__ = (UniqueConstraint('album_id','name', name='uq_label_album_name'),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    album_id: Mapped[str] = mapped_column(ForeignKey('albums.id', ondelete='CASCADE'), index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    color: Mapped[str] = mapped_column(String(7), default='#2563eb')
+    created_by: Mapped[str | None] = mapped_column(ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+class PhotoLabel(Base):
+    __tablename__ = 'photo_labels'
+    photo_id: Mapped[str] = mapped_column(ForeignKey('photos.id', ondelete='CASCADE'), primary_key=True)
+    label_id: Mapped[str] = mapped_column(ForeignKey('labels.id', ondelete='CASCADE'), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 class FileCleanup(Base):
     __tablename__ = 'file_cleanup'

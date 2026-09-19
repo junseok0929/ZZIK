@@ -420,12 +420,61 @@ def upload(album_id:str,file:UploadFile=File(...),request_id:str=Form(...,min_le
     return photo_dict(db,p)
 
 
+def album_person_names(db,album_id):
+    return [{'id':pid,'name':name} for pid,name in db.execute(select(Person.id,Person.name).where(Person.album_id==album_id)).all()]
+
+
+def album_label_names(db,album_id):
+    return [{'id':lid,'name':name} for lid,name in db.execute(select(Label.id,Label.name).where(Label.album_id==album_id)).all()]
+
+
+def album_place_names(db,album_id):
+    return [name for name in db.scalars(select(Photo.location_name).where(Photo.album_id==album_id,Photo.location_name.is_not(None)).distinct()) if name]
+
+
+def like_term(value): return '%'+value.replace('\\','\\\\').replace('%','\\%').replace('_','\\_')+'%'
+
+
+def iso_day(value,code='INVALID_DATE'):
+    from datetime import date as Date
+    try: return Date.fromisoformat(value)
+    except ValueError: fail(422,code,'날짜 형식을 확인해 주세요. 예: 2026-08-15')
+
+
 @app.get('/api/albums/{album_id}/photos')
 def list_photos(album_id:str,page:int=Query(1,ge=1),page_size:int=Query(40,ge=1,le=100),
                 filter:Literal['all','mine','solo','group','no_faces','review','final']='all',people:str='',
-                match:Literal['all','any']='all',tag:str='',q:str='',mine:bool=False,sort:Literal['newest','oldest','captured']='newest',date:str='',
+                match:Literal['all','any']='all',tag:str='',q:str='',mine:bool=False,
+                sort:Literal['newest','oldest','captured','best']='newest',date:str='',
+                date_from:str='',date_to:str='',location:str='',label:str='',
+                recommended:bool=False,selected:bool=False,nl:bool=False,
                 user=Depends(auth),db:DBSession=Depends(get_db)):
+    """`nl=true` runs the transparent Korean phrase parser and reports what it understood."""
     membership(db,album_id,user)
+    tags=[tag] if tag else []
+    text_query=q
+    face_count=None
+    interpretation=None
+    if nl and q.strip():
+        from .nlsearch import parse_query
+        interpretation=parse_query(q,album_person_names(db,album_id),locations=album_place_names(db,album_id),
+                                   labels=album_label_names(db,album_id))
+        # Explicit parameters win; the phrase only fills conditions the caller left at default.
+        text_query=interpretation['text']
+        if interpretation['people'] and not people:
+            people=','.join(interpretation['people'])
+            if match=='all': match=interpretation['match']
+        if interpretation['filter'] and filter=='all': filter=interpretation['filter']
+        tags=tags or list(interpretation['tags'])
+        location=location or interpretation['location']
+        label=label or interpretation['label']
+        if not date and not date_from and not date_to:
+            date_from,date_to=interpretation['date_from'],interpretation['date_to']
+        if interpretation['recommended']:
+            recommended=True
+            if sort=='newest': sort='best'
+        selected=selected or interpretation['selected']
+        face_count=interpretation.get('face_count')
     query=select(Photo).where(Photo.album_id==album_id)
     included=select(PhotoPerson.photo_id).where(PhotoPerson.excluded==False)
     if filter=='mine' or mine:
@@ -436,6 +485,9 @@ def list_photos(album_id:str,page:int=Query(1,ge=1),page_size:int=Query(40,ge=1,
     elif filter=='no_faces': query=query.where(Photo.analysis_status=='completed',Photo.face_count==0)
     elif filter=='review': query=query.where(or_(Photo.analysis_status=='failed',and_(Photo.analysis_status=='completed',Photo.unknown_faces>0)))
     elif filter=='final': query=query.where(Photo.final_version_id.is_not(None))
+    if face_count is not None: query=query.where(Photo.analysis_status=='completed',Photo.face_count==face_count)
+    if selected: query=query.where(Photo.selected==True)
+    if recommended: query=query.where(Photo.best_shot_score.is_not(None))
     person_ids=sorted(set(pid for pid in people.split(',') if pid))
     if len(person_ids)>100: fail(422,'TOO_MANY_PEOPLE','인물 필터를 줄여 주세요.')
     if person_ids:
@@ -446,24 +498,38 @@ def list_photos(album_id:str,page:int=Query(1,ge=1),page_size:int=Query(40,ge=1,
         else: query=query.where(Photo.id.in_(included.where(PhotoPerson.person_id.in_(person_ids))))
     from sqlalchemy.dialects.postgresql import JSONB
     tag_text=Photo.tags.cast(JSONB).cast(Text) if db.bind.dialect.name=='postgresql' else Photo.tags.cast(Text)
-    if tag:
-        if db.bind.dialect.name=='postgresql': query=query.where(Photo.tags.cast(JSONB).contains([tag]))
-        else: query=query.where(tag_text.ilike('%'+tag.replace('%','\\%').replace('_','\\_')+'%'))
-    if q:
-        term='%'+q.replace('%','\\%').replace('_','\\_')+'%'
+    for value in tags[:8]:
+        if db.bind.dialect.name=='postgresql': query=query.where(Photo.tags.cast(JSONB).contains([value]))
+        else: query=query.where(tag_text.ilike(like_term(value)))
+    if location: query=query.where(Photo.location_name.ilike(like_term(location)))
+    if label:
+        owned=db.scalar(select(Label.id).where(Label.id==label,Label.album_id==album_id))
+        if not owned: fail(422,'INVALID_LABEL','이 앨범의 라벨만 사용할 수 있어요.')
+        query=query.where(Photo.id.in_(select(PhotoLabel.photo_id).where(PhotoLabel.label_id==label)))
+    if text_query:
+        term=like_term(text_query)
         matching_people=select(Person.id).where(Person.album_id==album_id,Person.name.ilike(term))
         query=query.where(or_(Photo.filename.ilike(term),Photo.note.ilike(term),Photo.location_name.ilike(term),tag_text.ilike(term),Photo.id.in_(included.where(PhotoPerson.person_id.in_(matching_people)))))
     if date:
-        from datetime import date as Date
-        try: Date.fromisoformat(date)
-        except ValueError: fail(422,'INVALID_DATE','날짜 형식을 확인해 주세요.')
+        iso_day(date)
         query=query.where(Photo.captured_at.startswith(date))
+    if date_from or date_to:
+        from datetime import datetime as DateTime, time as Time, timezone as TZ
+        low=iso_day(date_from,'INVALID_DATE_FROM') if date_from else iso_day('0001-01-01')
+        high=iso_day(date_to,'INVALID_DATE_TO') if date_to else iso_day('9999-12-31')
+        if low>high: fail(422,'INVALID_DATE_RANGE','시작일이 종료일보다 늦어요.')
+        # ISO capture strings compare lexicographically; upload time covers photos without EXIF.
+        query=query.where(or_(and_(Photo.captured_at.is_not(None),Photo.captured_at>=low.isoformat(),Photo.captured_at<=high.isoformat()+'T99'),
+                              and_(Photo.captured_at.is_(None),Photo.created_at>=DateTime.combine(low,Time.min,TZ.utc),
+                                   Photo.created_at<=DateTime.combine(high,Time.max,TZ.utc))))
     total=db.scalar(select(func.count()).select_from(query.subquery()))
-    order=Photo.created_at.asc() if sort=='oldest' else Photo.captured_at.desc().nulls_last() if sort=='captured' else Photo.created_at.desc()
+    order=(Photo.created_at.asc() if sort=='oldest' else Photo.captured_at.desc().nulls_last() if sort=='captured'
+           else Photo.best_shot_score.desc().nulls_last() if sort=='best' else Photo.created_at.desc())
     rows=db.scalars(query.order_by(order,Photo.id).offset((page-1)*page_size).limit(page_size)).all()
     stats={status:0 for status in ['pending','processing','completed','failed']}
     stats.update(dict(db.execute(select(Photo.analysis_status,func.count()).where(Photo.album_id==album_id).group_by(Photo.analysis_status)).all()))
-    return {'items':[photo_dict(db,p) for p in rows],'total':total,'page':page,'page_size':page_size,'stats':stats}
+    return {'items':[photo_dict(db,p) for p in rows],'total':total,'page':page,'page_size':page_size,'stats':stats,
+            'interpretation':interpretation}
 
 
 @app.get('/api/photos/{photo_id}')
@@ -615,11 +681,16 @@ def preview(photo_id:str,body:RenderSettings,user=Depends(auth),db:DBSession=Dep
     return Response(data,media_type='image/jpeg')
 
 
-def version_file_response(photo,version,download=False,preview=False):
-    size=1600 if preview and not download else None
+def version_render_key(photo,version,size=None):
+    """Renders once from the untouched original and reuses the cached result."""
     key=render_cache_key(photo.original_hash,version.brightness,version.saturation,size)
     storage=get_storage()
     if not storage.exists(key): storage.put(key,render_image(storage.get(photo.original_key),version.brightness,version.saturation,max_size=size),'image/jpeg')
+    return key
+
+
+def version_file_response(photo,version,download=False,preview=False):
+    key=version_render_key(photo,version,1600 if preview and not download else None)
     filename=f'{Path(photo.filename).stem}-v{version.number}.jpg' if download else None
     return stored_file(key,'image/jpeg',filename)
 
@@ -714,6 +785,181 @@ def recommendations(album_id:str,user=Depends(auth),db:DBSession=Depends(get_db)
     for group in groups:
         for photo in group['photos']: photo.pop('sha256',None)
     return {'groups':groups,'method':'동일한 전처리의 유사 사진 안에서 흔들림·노출·눈 감음을 비교해요. 촬영 시간이 없으면 같은 원본만 묶어요.'}
+
+
+@app.get('/api/albums/{album_id}/smart-albums')
+def smart_albums(album_id:str,user=Depends(auth),db:DBSession=Depends(get_db)):
+    """Enumerated album groupings, including the person combinations that actually occur.
+
+    Counts come from the same stored analysis the gallery filters use, so every card
+    opens a filter that returns exactly the counted photos.
+    """
+    membership(db,album_id,user)
+    rows=db.execute(select(Photo.id,Photo.analysis_status,Photo.face_count,Photo.unknown_faces,Photo.location_name,
+                           Photo.tags,Photo.final_version_id,Photo.best_shot_score,Photo.selected,Photo.latitude)
+                    .where(Photo.album_id==album_id).order_by(Photo.created_at.desc(),Photo.id)).all()
+    people=db.scalars(select(Person).where(Person.album_id==album_id).order_by(Person.created_at)).all()
+    names={person.id:person.name for person in people}
+    mine={person.id for person in people if person.user_id==user.id}
+    appearances={}
+    for photo_id,person_id in db.execute(select(PhotoPerson.photo_id,PhotoPerson.person_id)
+                                        .where(PhotoPerson.excluded==False,
+                                               PhotoPerson.photo_id.in_(select(Photo.id).where(Photo.album_id==album_id)))).all():
+        if person_id in names: appearances.setdefault(photo_id,set()).add(person_id)
+    buckets={key:{} for key in ('basic','person','combination','place','tag','label')}
+    def add(kind,key,photo_id):
+        entry=buckets[kind].setdefault(key,{'count':0,'cover':photo_id})
+        entry['count']+=1
+    for row in rows:
+        completed=row.analysis_status=='completed'
+        add('basic','all',row.id)
+        if completed and row.face_count==1: add('basic','solo',row.id)
+        if completed and row.face_count>=2: add('basic','group',row.id)
+        if completed and row.face_count==0: add('basic','no_faces',row.id)
+        if row.analysis_status=='failed' or (completed and row.unknown_faces>0): add('basic','review',row.id)
+        if row.final_version_id: add('basic','final',row.id)
+        if row.selected: add('basic','selected',row.id)
+        if row.best_shot_score is not None: add('basic','recommended',row.id)
+        present=appearances.get(row.id,set())
+        for person_id in present: add('person',person_id,row.id)
+        if mine & present: add('basic','mine',row.id)
+        if len(present)>=2: add('combination',tuple(sorted(present)),row.id)
+        if row.location_name: add('place',row.location_name,row.id)
+        elif row.latitude is not None: add('place','__coordinates__',row.id)
+        for value in (row.tags or [])[:12]:
+            if isinstance(value,str) and value: add('tag',value,row.id)
+    for label_id,photo_id in db.execute(select(PhotoLabel.label_id,PhotoLabel.photo_id)
+                                       .where(PhotoLabel.label_id.in_(select(Label.id).where(Label.album_id==album_id)))).all():
+        add('label',label_id,photo_id)
+    label_rows={row.id:row for row in db.scalars(select(Label).where(Label.album_id==album_id).order_by(Label.created_at))}
+    def cover(photo_id): return f'/api/photos/{photo_id}/file?kind=thumbnail' if photo_id else None
+    def card(card_id,title,bucket,key,query,subtitle=None,color=None):
+        entry=buckets[bucket].get(key)
+        if not entry: return None
+        return {'id':card_id,'title':title,'subtitle':subtitle,'count':entry['count'],
+                'cover_url':cover(entry['cover']),'color':color,'query':query}
+    basics=[card('all','전체 사진','basic','all',{}),
+            card('mine','내가 나온 사진','basic','mine',{'filter':'mine'}),
+            card('group','단체사진','basic','group',{'filter':'group'},'2인 이상 등장'),
+            card('solo','혼자 나온 사진','basic','solo',{'filter':'solo'}),
+            card('no_faces','얼굴 미검출','basic','no_faces',{'filter':'no_faces'},'풍경·사물 사진'),
+            card('review','확인 필요','basic','review',{'filter':'review'},'모르는 얼굴 또는 분석 실패'),
+            card('recommended','AI 추천 순','basic','recommended',{'sort':'best','recommended':'true'},'흔들림·노출·눈 감음 비교'),
+            card('selected','함께 고른 사진','basic','selected',{'selected':'true'}),
+            card('final','최종본','basic','final',{'filter':'final'})]
+    # A person with no analysed appearance yet gets no card rather than an empty one.
+    person_cards=[item for item in (card(f'person-{pid}',names[pid],'person',pid,{'people':pid},'등장 사진') for pid in names) if item]
+    everyone=tuple(sorted(names)) if len(names)>1 else None
+    combos=sorted(buckets['combination'].items(),key=lambda item:(-item[1]['count'],len(item[0])))
+    ordered=([combo for combo in combos if combo[0]==everyone]+[combo for combo in combos if combo[0]!=everyone])[:9]
+    combination_cards=[]
+    for key,entry in ordered:
+        title=' · '.join(names[pid] for pid in key)
+        combination_cards.append({'id':'combo-'+'-'.join(key),'title':title,
+                                  'subtitle':'앨범 인물 전원' if key==everyone else f'{len(key)}명 함께',
+                                  'count':entry['count'],'cover_url':cover(entry['cover']),'color':None,
+                                  'query':{'people':','.join(key),'match':'all'}})
+    place_cards=[]
+    for key,entry in sorted(buckets['place'].items(),key=lambda item:-item[1]['count'])[:12]:
+        if key=='__coordinates__':
+            place_cards.append({'id':'place-coordinates','title':'좌표만 있는 사진','subtitle':'장소명 연결이 설정되지 않았어요',
+                                'count':entry['count'],'cover_url':cover(entry['cover']),'color':None,'query':{}})
+        else:
+            place_cards.append({'id':'place-'+key[:60],'title':key,'subtitle':'촬영 장소','count':entry['count'],
+                                'cover_url':cover(entry['cover']),'color':None,'query':{'location':key}})
+    tag_cards=[{'id':'tag-'+key,'title':'#'+key,'subtitle':'장면 태그','count':entry['count'],
+                'cover_url':cover(entry['cover']),'color':None,'query':{'tag':key}}
+               for key,entry in sorted(buckets['tag'].items(),key=lambda item:-item[1]['count'])[:12]]
+    label_cards=[{'id':'label-'+key,'title':label_rows[key].name,'subtitle':'멤버 라벨','count':entry['count'],
+                  'cover_url':cover(entry['cover']),'color':label_rows[key].color,'query':{'label':key}}
+                 for key,entry in sorted(buckets['label'].items(),key=lambda item:-item[1]['count']) if key in label_rows]
+    sections=[{'id':'basic','title':'기본 분류','items':[c for c in basics if c]},
+              {'id':'person','title':'인물별','items':person_cards},
+              {'id':'combination','title':'인물 조합','items':combination_cards},
+              {'id':'place','title':'장소','items':place_cards},
+              {'id':'tag','title':'장면','items':tag_cards},
+              {'id':'label','title':'라벨','items':label_cards}]
+    pending=sum(1 for row in rows if row.analysis_status in {'pending','processing'})
+    return {'sections':[section for section in sections if section['items']],'total':len(rows),
+            'analyzing':pending,'people_total':len(names),
+            'notice':'분석이 끝나지 않은 사진은 인물·장면 분류에 아직 반영되지 않아요.' if pending else None}
+
+
+def label_dict(db,label,photo_count=None):
+    if photo_count is None:
+        photo_count=db.scalar(select(func.count()).select_from(PhotoLabel).where(PhotoLabel.label_id==label.id))
+    return {'id':label.id,'album_id':label.album_id,'name':label.name,'color':label.color,
+            'created_by':label.created_by,'created_at':label.created_at,'photo_count':photo_count}
+
+
+@app.get('/api/albums/{album_id}/labels')
+def list_labels(album_id:str,user=Depends(auth),db:DBSession=Depends(get_db)):
+    membership(db,album_id,user)
+    counts=dict(db.execute(select(PhotoLabel.label_id,func.count()).join(Label,Label.id==PhotoLabel.label_id)
+                           .where(Label.album_id==album_id).group_by(PhotoLabel.label_id)).all())
+    rows=db.scalars(select(Label).where(Label.album_id==album_id).order_by(Label.created_at)).all()
+    return {'items':[label_dict(db,row,counts.get(row.id,0)) for row in rows],'total':len(rows)}
+
+
+@app.post('/api/albums/{album_id}/labels',status_code=201)
+def create_label(album_id:str,body:LabelCreate,user=Depends(auth),db:DBSession=Depends(get_db)):
+    membership(db,album_id,user)
+    if db.scalar(select(func.count()).select_from(Label).where(Label.album_id==album_id))>=60:
+        fail(409,'TOO_MANY_LABELS','라벨은 앨범당 60개까지 만들 수 있어요.')
+    label=Label(album_id=album_id,name=body.name.strip(),color=body.color,created_by=user.id)
+    if not label.name: fail(422,'INVALID_NAME','라벨 이름을 입력해 주세요.')
+    db.add(label)
+    try: db.commit()
+    except IntegrityError:
+        db.rollback()
+        fail(409,'LABEL_EXISTS','같은 이름의 라벨이 이미 있어요.')
+    return label_dict(db,label,0)
+
+
+def find_label(db,label_id,user):
+    label=db.get(Label,label_id)
+    if not label: fail(404,'LABEL_NOT_FOUND','라벨을 찾을 수 없어요.')
+    membership(db,label.album_id,user)
+    return label
+
+
+@app.patch('/api/labels/{label_id}')
+def patch_label(label_id:str,body:LabelPatch,user=Depends(auth),db:DBSession=Depends(get_db)):
+    label=find_label(db,label_id,user)
+    values=body.model_dump(exclude_unset=True)
+    if values.get('name') is not None:
+        label.name=values['name'].strip()
+        if not label.name: fail(422,'INVALID_NAME','라벨 이름을 입력해 주세요.')
+    if values.get('color') is not None: label.color=values['color']
+    try: db.commit()
+    except IntegrityError:
+        db.rollback()
+        fail(409,'LABEL_EXISTS','같은 이름의 라벨이 이미 있어요.')
+    return label_dict(db,label)
+
+
+@app.delete('/api/labels/{label_id}')
+def delete_label(label_id:str,user=Depends(auth),db:DBSession=Depends(get_db)):
+    label=find_label(db,label_id,user)
+    db.delete(label)
+    db.commit()
+    return {'ok':True}
+
+
+@app.put('/api/photos/{photo_id}/labels')
+def set_photo_labels(photo_id:str,body:LabelsSet,user=Depends(auth),db:DBSession=Depends(get_db)):
+    """Labels are organisational only: they never change approval targets or analysis."""
+    p=get_photo(db,photo_id,user,lock=True)
+    wanted=set(body.label_ids)
+    if wanted:
+        valid=set(db.scalars(select(Label.id).where(Label.album_id==p.album_id,Label.id.in_(wanted))))
+        if valid!=wanted: fail(422,'INVALID_LABEL','이 앨범의 라벨만 지정할 수 있어요.')
+    existing={row.label_id:row for row in db.scalars(select(PhotoLabel).where(PhotoLabel.photo_id==p.id))}
+    for label_id,row in existing.items():
+        if label_id not in wanted: db.delete(row)
+    for label_id in wanted-set(existing): db.add(PhotoLabel(photo_id=p.id,label_id=label_id))
+    db.commit()
+    return photo_dict(db,p,detail=True)
 
 
 @app.get('/api/notifications')
@@ -837,8 +1083,13 @@ def split_group(group_id:str,body:GroupSplit,user=Depends(auth),db:DBSession=Dep
     return group_dict(db,new)
 
 @app.get('/api/albums/{album_id}/download')
-def album_download(album_id:str,photo_ids:str,user=Depends(auth),db:DBSession=Depends(get_db)):
-    """A spooled ZIP keeps a bounded batch of originals out of browser memory."""
+def album_download(album_id:str,photo_ids:str,kind:Literal['original','final']='original',
+                   user=Depends(auth),db:DBSession=Depends(get_db)):
+    """A spooled ZIP keeps a bounded batch out of browser memory.
+
+    `kind=final` exports the agreed final version where one exists and falls back to the
+    original otherwise; the manifest records which file each entry came from.
+    """
     import tempfile
     import zipfile
     from fastapi.responses import StreamingResponse
@@ -848,11 +1099,25 @@ def album_download(album_id:str,photo_ids:str,user=Depends(auth),db:DBSession=De
     photos=db.scalars(select(Photo).where(Photo.album_id==album_id,Photo.id.in_(ids))).all()
     if len(photos)!=len(ids): fail(404,'PHOTO_NOT_FOUND','선택한 사진 중 접근할 수 없는 사진이 있어요.')
     if sum(p.byte_size for p in photos)>512*1024*1024: fail(413,'DOWNLOAD_TOO_LARGE','한 번에 512MB까지 내려받을 수 있어요. 사진을 나누어 선택해 주세요.')
+    order={pid:index for index,pid in enumerate(ids)}
+    photos=sorted(photos,key=lambda p:order[p.id])
     output=tempfile.SpooledTemporaryFile(max_size=8*1024*1024)
     try:
+        manifest=[]
         with zipfile.ZipFile(output,'w',compression=zipfile.ZIP_STORED) as archive:
             for index,p in enumerate(photos,1):
-                archive.writestr(f'{index:03d}-{Path(p.filename).name}',get_storage().get(p.original_key))
+                stem=Path(p.filename).stem
+                version=db.get(Version,p.final_version_id) if kind=='final' and p.final_version_id else None
+                if version:
+                    name=f'{index:03d}-{stem}-final.jpg'
+                    archive.writestr(name,get_storage().get(version_render_key(p,version)))
+                    manifest.append(f'{name}\t최종본 v{version.number} ({version.name})')
+                else:
+                    name=f'{index:03d}-{Path(p.filename).name}'
+                    archive.writestr(name,get_storage().get(p.original_key))
+                    manifest.append(f'{name}\t원본' + ('' if kind=='original' else ' (최종본 없음)'))
+            if kind=='final':
+                archive.writestr('내용.txt','\n'.join(['파일\t출처',*manifest])+'\n')
         output.seek(0)
     except Exception:
         output.close()
@@ -861,4 +1126,6 @@ def album_download(album_id:str,photo_ids:str,user=Depends(auth),db:DBSession=De
         try:
             while chunk:=output.read(128*1024): yield chunk
         finally: output.close()
-    return StreamingResponse(chunks(),media_type='application/zip',headers={'Content-Disposition':"attachment; filename*=UTF-8''zzik-originals.zip"})
+    filename='zzik-final.zip' if kind=='final' else 'zzik-originals.zip'
+    return StreamingResponse(chunks(),media_type='application/zip',
+                             headers={'Content-Disposition':"attachment; filename*=UTF-8''"+filename})

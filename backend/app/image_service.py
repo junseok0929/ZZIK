@@ -194,6 +194,30 @@ def quality_metrics(data: bytes) -> dict:
             "clipped_fraction": round(clipped, 5), "preprocessing": "gray-center-fit-384-v1"}
 
 
+def best_shot_score(quality: dict | None, faces: list | None = None) -> float | None:
+    """A comparative 0–1 signal from stored metrics, not an absolute quality guarantee.
+
+    Only metrics produced by the identical `quality_metrics` preprocessing are combined,
+    so two photos are comparable exactly when both were measured the same way.
+    """
+    if not quality or quality.get("preprocessing") != "gray-center-fit-384-v1":
+        return None
+    sharpness = quality.get("sharpness")
+    exposure = quality.get("exposure")
+    clipped = quality.get("clipped_fraction")
+    if sharpness is None or exposure is None or clipped is None:
+        return None
+    # Laplacian variance spans orders of magnitude; compress it before weighting.
+    sharp = min(1.0, math.log10(1 + max(0.0, float(sharpness))) / 3)
+    clip = max(0.0, 1 - min(1.0, float(clipped) * 10))
+    middle = 1 - min(1.0, abs(float(exposure) - .5) * 2.5)
+    faces = faces or []
+    closed = sum(face.get("eyes_open") is False for face in faces)
+    # Without eye data the term stays neutral instead of inventing a penalty or bonus.
+    eyes = 1.0 if not faces or all(face.get("eyes_open") is None for face in faces) else max(0.0, 1 - closed / len(faces))
+    return round(.4 * sharp + .2 * clip + .2 * middle + .2 * eyes, 4)
+
+
 def similar_groups(photos: list[dict]) -> list[dict]:
     """Complete-link grouping avoids a weak chain merging different moments."""
     def close(a, b):

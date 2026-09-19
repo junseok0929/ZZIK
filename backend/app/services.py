@@ -112,9 +112,13 @@ def board_status(db,p):
     if db.scalar(select(Version.id).where(Version.photo_id==p.id).limit(1)): return 'editing'
     return 'selection'
 
+def photo_labels(db,photo_id):
+    rows=db.scalars(select(Label).join(PhotoLabel,PhotoLabel.label_id==Label.id).where(PhotoLabel.photo_id==photo_id).order_by(Label.created_at)).all()
+    return [{'id':row.id,'name':row.name,'color':row.color} for row in rows]
+
 def photo_dict(db,p,detail=False):
     links=db.execute(select(Person,PhotoPerson.source).join(PhotoPerson,PhotoPerson.person_id==Person.id).where(PhotoPerson.photo_id==p.id,PhotoPerson.excluded==False)).all()
-    result={'id':p.id,'album_id':p.album_id,'uploader_id':p.uploader_id,'filename':p.filename,'thumbnail_url':f'/api/photos/{p.id}/file?kind=thumbnail','display_url':f'/api/photos/{p.id}/file?kind=display','original_url':f'/api/photos/{p.id}/file?kind=original','width':p.width,'height':p.height,'created_at':p.created_at,'captured_at':p.captured_at,'capture_timezone':p.capture_timezone,'latitude':p.latitude,'longitude':p.longitude,'location_name':p.location_name,'analysis_status':p.analysis_status,'analysis_error':p.analysis_error,'analysis_provider':p.analysis_provider,'analysis_mode':p.analysis_mode,'analysis_metadata':p.analysis_metadata,'face_count':p.face_count,'unknown_faces':p.unknown_faces,'people':[dict(person_dict(person),source=source) for person,source in links],'tags':p.tags,'purpose':p.purpose,'selected':p.selected,'note':p.note,'final_version_id':p.final_version_id,'board_status':board_status(db,p),'quality':p.quality}
+    result={'labels':photo_labels(db,p.id),'best_shot_score':p.best_shot_score,'id':p.id,'album_id':p.album_id,'uploader_id':p.uploader_id,'filename':p.filename,'thumbnail_url':f'/api/photos/{p.id}/file?kind=thumbnail','display_url':f'/api/photos/{p.id}/file?kind=display','original_url':f'/api/photos/{p.id}/file?kind=original','width':p.width,'height':p.height,'created_at':p.created_at,'captured_at':p.captured_at,'capture_timezone':p.capture_timezone,'latitude':p.latitude,'longitude':p.longitude,'location_name':p.location_name,'analysis_status':p.analysis_status,'analysis_error':p.analysis_error,'analysis_provider':p.analysis_provider,'analysis_mode':p.analysis_mode,'analysis_metadata':p.analysis_metadata,'face_count':p.face_count,'unknown_faces':p.unknown_faces,'people':[dict(person_dict(person),source=source) for person,source in links],'tags':p.tags,'purpose':p.purpose,'selected':p.selected,'note':p.note,'final_version_id':p.final_version_id,'board_status':board_status(db,p),'quality':p.quality}
     if detail:
         result['faces']=p.faces
         result['versions']=[version_dict(db,v,p) for v in db.scalars(select(Version).where(Version.photo_id==p.id).order_by(Version.number.desc()))]

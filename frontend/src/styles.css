@@ -459,3 +459,29 @@ img { max-width: 100%; }
   .login-form input { font-size: 16px; }
 }
 @media(prefers-reduced-motion:reduce) { *, *::before, *::after { scroll-behavior: auto!important; animation: none!important; transition: none!important; } }
+
+/* Smart albums: enumerated groupings that each open a real gallery filter. */
+.smart-section { margin: 6px 0 26px; }
+.smart-section h3 { font-size: 14px; display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.smart-section h3 span { font-size: 10px; color: var(--muted); background: var(--bg); border-radius: 20px; padding: 2px 8px; }
+.smart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.smart-card { display: flex; align-items: center; gap: 11px; text-align: left; padding: 9px; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
+.smart-card:hover { border-color: var(--accent); }
+.smart-card img, .smart-card-blank { width: 52px; height: 52px; border-radius: 7px; object-fit: cover; flex: none; }
+.smart-card-blank { display: grid; place-items: center; background: #e6ecf6; color: #8d9bb2; }
+.smart-card-text { display: grid; gap: 3px; min-width: 0; }
+.smart-card-text strong { font-size: 12px; overflow-wrap: anywhere; }
+.smart-card-text small { font-size: 10px; color: var(--muted); }
+.smart-card-count { margin-left: auto; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* What the phrase parser understood, shown so a wrong reading is visible and removable. */
+.search-reading { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; font-size: 11px; color: var(--muted); }
+.search-reading .reading-label { color: var(--muted); }
+.reading-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--accent-light); color: var(--accent); border: 1px solid transparent; border-radius: 20px; padding: 3px 9px; font-size: 11px; }
+.reading-chip.kind-tag { background: #eef6ee; color: #3f7a45; }
+.reading-chip.kind-date { background: #fdf3e6; color: #9a6a1f; }
+.reading-chip.kind-text { background: var(--bg); color: #6b7b96; }
+.reading-chip.removable { border-color: var(--border); background: var(--bg); color: #6b7b96; }
+.reading-chip.removable:hover { border-color: var(--accent); color: var(--accent); }
+.advanced-filters .checkbox-filter { flex-direction: row; align-items: center; gap: 6px; display: flex; font-size: 11px; }
+.label-tags span { border: 1px solid var(--border); background: transparent; }

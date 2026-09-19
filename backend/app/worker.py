@@ -17,7 +17,7 @@ from sqlalchemy.exc import OperationalError
 from .analysis import AnalysisError, analyze
 from .config import settings
 from .db import SessionLocal
-from .image_service import ImageError, quality_metrics
+from .image_service import ImageError, best_shot_score, quality_metrics
 from .models import AnalysisJob, AnalysisRun, Photo, PhotoPerson, Person, now
 from .services import invalidate_photo_reviews, drain_cleanup, lock_album
 from .storage import get_storage
@@ -181,6 +181,7 @@ def process_claim(job_id: str, token: str) -> bool:
                 return False
             _apply_result(db, photo, result)
             photo.quality = quality
+            photo.best_shot_score = best_shot_score(quality, photo.faces)
             if location.get("name"):
                 photo.location_name = location["name"]
             if location:

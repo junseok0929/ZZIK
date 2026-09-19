@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertCircle, ArrowLeft, ArrowLeftRight, Check, CheckCircle2, ChevronDown, Clock3, Download, History, Info, LoaderCircle, Maximize2, MessageCircle, Minimize2, Palette, RotateCcw, Send, ShieldCheck, SlidersHorizontal, SunMedium, Trash2, Users, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowLeftRight, Check, CheckCircle2, ChevronDown, Clock3, Download, GitBranch, History, Info, LoaderCircle, Maximize2, MessageCircle, Minimize2, Palette, Plus, RotateCcw, Send, ShieldCheck, SlidersHorizontal, SunMedium, Tag, Trash2, Users, X } from 'lucide-react';
 import { api, downloadPhoto, patch, post, remove, timeLabel } from './api';
 import { Avatar, ErrorBox, Spinner } from './ui';
-import type { Album, Photo, User, Version } from './types';
+import type { Album, Label, List, Photo, User, Version } from './types';
 import './Editor.css';
 
 type DetailPhoto = Photo & { uploader_id?: string; analysis_metadata?: Record<string, unknown> };
@@ -27,6 +27,11 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
   const [versionName, setVersionName] = useState('');
   const [compare, setCompare] = useState(false);
   const [split, setSplit] = useState(50);
+  // The comparison baseline: the untouched original, or any saved version.
+  const [baseId, setBaseId] = useState<string>('');
+  const [labelIds, setLabelIds] = useState<string[] | null>(null);
+  const [newLabel, setNewLabel] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#2563eb');
   const [showOriginal, setShowOriginal] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
@@ -51,6 +56,25 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
   closeRef.current = onClose;
   const dirty = brightness !== (selected?.brightness ?? 1) || saturation !== (selected?.saturation ?? 1);
   const busyRef = useRef(false);
+  const labels = useQuery({ queryKey: ['labels', album.id], queryFn: () => api<List<Label>>(`/albums/${album.id}/labels`) });
+  const base = versions.find(v => v.id === baseId);
+  // Versions form a tree through parent_id; ordering children under parents keeps a branch readable.
+  const tree = useMemo(() => {
+    const children = new Map<string, Version[]>();
+    const sorted = [...versions].sort((a, b) => a.number - b.number);
+    for (const version of sorted) {
+      const key = version.parent_id && sorted.some(v => v.id === version.parent_id) ? version.parent_id : '';
+      children.set(key, [...(children.get(key) || []), version]);
+    }
+    const flat: { version: Version; depth: number }[] = [];
+    const walk = (key: string, depth: number) => {
+      for (const version of children.get(key) || []) { flat.push({ version, depth }); walk(version.id, depth + 1); }
+    };
+    walk('', 0);
+    // A version whose parent was deleted would otherwise disappear from the strip.
+    for (const version of sorted) if (!flat.some(item => item.version.id === version.id)) flat.push({ version, depth: 0 });
+    return flat;
+  }, [versions]);
 
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -113,6 +137,8 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
   function chooseVersion(version?: Version) {
     setSelectedId(version?.id || null); setBrightness(version?.brightness ?? 1); setSaturation(version?.saturation ?? 1);
     setVersionName(''); setConfirmed(false); setShowOriginal(false); setNotice(''); setError(null);
+    // A baseline equal to the new selection would compare the image against itself.
+    if (version && baseId === version.id) setBaseId('');
   }
 
   function saveVersion() {
@@ -124,6 +150,8 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
 
   const resultUrl = photo ? (brightness === 1 && saturation === 1 ? photo.display_url : renderedUrl || selected?.preview_url || photo.display_url) : '';
   const selectedTitle = selected?.name || '원본';
+  const baseUrl = base ? base.preview_url : photo?.display_url || '';
+  const baseTitle = base ? `v${base.number} ${base.name}` : '원본';
   const personTargets = (photo?.people || []).filter(person => !!person.user_id);
   const missingAccounts = (photo?.people || []).filter(person => !person.user_id);
   const noFaces = photo?.analysis_status === 'completed' && photo.face_count === 0 && photo.people.length === 0;
@@ -177,20 +205,22 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
       <main className="editor-canvas">
         <div className="editor-canvas-toolbar"><div><span className="editor-version-badge">{dirty ? '저장 전 미리보기' : selectedTitle}</span>{selected?.is_final && !dirty && <span className="editor-final-badge"><CheckCircle2 size={13}/>최종본</span>}</div><button className="editor-icon" onClick={() => setExpanded(!expanded)} aria-label={expanded ? '편집 패널 보기' : '사진 확대'}>{expanded ? <Minimize2 size={17}/> : <Maximize2 size={17}/>}</button></div>
         <div className={`editor-photo-stage ${compare && !showOriginal ? 'comparing' : ''}`} style={{ aspectRatio: `${photo.width} / ${photo.height}` }}>
-          <img src={showOriginal || compare ? photo.display_url : resultUrl} alt={`${photo.filename} ${showOriginal ? '원본' : selectedTitle}`} className="editor-main-image"/>
-          {compare && !showOriginal && <><img src={resultUrl} alt="보정 결과 비교" className="editor-compare-image" style={{ clipPath: `inset(0 0 0 ${split}%)` }}/><div className="editor-comparison-line" style={{ left: `${split}%` }}><span><ArrowLeftRight size={19}/></span></div><span className="editor-before-label">원본</span><span className="editor-after-label">{dirty ? '보정 중' : selectedTitle}</span><input className="editor-comparison-input" aria-label="원본과 보정본 비교 위치" type="range" min="0" max="100" value={split} onChange={event => setSplit(Number(event.target.value))}/></>}
+          <img src={showOriginal ? photo.display_url : compare ? baseUrl : resultUrl} alt={`${photo.filename} ${showOriginal ? '원본' : compare ? baseTitle : selectedTitle}`} className="editor-main-image"/>
+          {compare && !showOriginal && <><img src={resultUrl} alt="보정 결과 비교" className="editor-compare-image" style={{ clipPath: `inset(0 0 0 ${split}%)` }}/><div className="editor-comparison-line" style={{ left: `${split}%` }}><span><ArrowLeftRight size={19}/></span></div><span className="editor-before-label">{baseTitle}</span><span className="editor-after-label">{dirty ? '보정 중' : selectedTitle}</span><input className="editor-comparison-input" aria-label={`${baseTitle}과 ${selectedTitle} 비교 위치`} type="range" min="0" max="100" value={split} onChange={event => setSplit(Number(event.target.value))}/></>}
           {rendering && <span className="editor-rendering"><LoaderCircle className="spin" size={14}/>보정 미리보기 생성 중</span>}
           {showOriginal && <span className="editor-original-label">원본을 보고 있어요</span>}
         </div>
         <div className="editor-preview-controls">
           <div className="editor-view-toggle"><button aria-label="원본 보기" className={showOriginal || (!selected && !dirty) ? 'active' : ''} aria-pressed={showOriginal || (!selected && !dirty)} onClick={() => { setShowOriginal(true); setCompare(false); }}>원본</button><button aria-label="보정본 보기" className={!showOriginal && (!!selected || dirty) ? 'active' : ''} aria-pressed={!showOriginal && (!!selected || dirty)} disabled={!selected && !dirty} onClick={() => setShowOriginal(false)}>{selected ? `v${selected.number}` : '보정본'}</button></div>
-          <button className={`editor-button subtle editor-compare-toggle ${compare ? 'active' : ''}`} aria-label="슬라이더로 비교" aria-pressed={compare} onClick={() => { setCompare(!compare); setShowOriginal(false); }}><ArrowLeftRight size={16}/><span>슬라이더로 비교</span></button><span className="editor-image-size">{photo.width.toLocaleString()} × {photo.height.toLocaleString()}</span>
+          <button className={`editor-button subtle editor-compare-toggle ${compare ? 'active' : ''}`} aria-label="슬라이더로 비교" aria-pressed={compare} onClick={() => { setCompare(!compare); setShowOriginal(false); }}><ArrowLeftRight size={16}/><span>슬라이더로 비교</span></button>
+          {compare && versions.length > 0 && <label className="editor-compare-base"><span className="editor-sr-only">비교 기준</span><select aria-label="비교 기준 선택" value={baseId} onChange={event => setBaseId(event.target.value)}><option value="">원본과 비교</option>{[...versions].sort((a, b) => a.number - b.number).filter(version => version.id !== selectedId).map(version => <option key={version.id} value={version.id}>v{version.number} {version.name}과 비교</option>)}</select></label>}
+          <span className="editor-image-size">{photo.width.toLocaleString()} × {photo.height.toLocaleString()}</span>
         </div>
         {previewError && <div className="editor-preview-error"><ErrorBox error={previewError}/></div>}
         <section className="editor-filmstrip" aria-label="사진 보정 이력">
-          <div className="editor-filmstrip-title"><span>보정본</span><small>{versions.length}개</small></div>
+          <div className="editor-filmstrip-title"><span>보정본</span><small>{versions.length}개</small>{tree.some(item => item.depth > 0) && <small className="editor-branch-hint"><GitBranch size={12}/>분기 있음</small>}</div>
           <div className="editor-version-list"><button className={`editor-version ${!selectedId ? 'active' : ''}`} aria-pressed={!selectedId} onClick={() => chooseVersion()}><span className="editor-version-thumb"><img src={photo.thumbnail_url} alt="원본 썸네일"/>{!selectedId && <i><Check size={12}/></i>}</span><strong>원본</strong></button>
-            {[...versions].sort((a, b) => a.number - b.number).map(version => <button key={version.id} title={`${version.name} · ${version.author.name} · ${timeLabel(version.created_at)} · 밝기 ${Math.round(version.brightness * 100)}% · 채도 ${Math.round(version.saturation * 100)}%`} className={`editor-version ${selectedId === version.id ? 'active' : ''}`} aria-pressed={selectedId === version.id} onClick={() => chooseVersion(version)}><span className="editor-version-thumb"><img src={version.preview_url} alt={`${version.name} 썸네일`} loading="lazy"/>{version.is_final ? <em>최종본</em> : selectedId === version.id && <i><Check size={12}/></i>}</span><strong>{version.name}</strong><small>{version.author.name} · {timeLabel(version.created_at)}</small><small>밝기 {Math.round(version.brightness * 100)}% · 채도 {Math.round(version.saturation * 100)}%</small></button>)}
+            {tree.map(({ version, depth }) => { const parent = versions.find(v => v.id === version.parent_id); return <button key={version.id} style={depth ? { marginLeft: `${Math.min(depth, 4) * 12}px` } : undefined} title={`${version.name} · ${version.author.name} · ${timeLabel(version.created_at)} · 밝기 ${Math.round(version.brightness * 100)}% · 채도 ${Math.round(version.saturation * 100)}%${parent ? ` · v${parent.number}에서 분기` : ''}`} className={`editor-version ${selectedId === version.id ? 'active' : ''} ${depth ? 'is-branch' : ''}`} aria-pressed={selectedId === version.id} onClick={() => chooseVersion(version)}><span className="editor-version-thumb"><img src={version.preview_url} alt={`${version.name} 썸네일`} loading="lazy"/>{version.is_final ? <em>최종본</em> : selectedId === version.id && <i><Check size={12}/></i>}</span><strong>v{version.number} {version.name}</strong><small>{version.author.name} · {timeLabel(version.created_at)}</small><small>밝기 {Math.round(version.brightness * 100)}% · 채도 {Math.round(version.saturation * 100)}%</small>{parent && <small className="editor-version-parent"><GitBranch size={11}/>v{parent.number}에서 분기</small>}</button>; })}
           </div>
         </section>
         {selected && selected.review_requested && !selected.needs_review && tab !== 'review' && <div className="editor-mobile-review">
@@ -257,7 +287,21 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
               </> : <p>아직 저장된 처리 시간과 호출 기록이 없어요.</p>}
             </details>
             <dl className="editor-metadata"><div><dt>파일명</dt><dd>{photo.filename}</dd></div><div><dt>크기</dt><dd>{photo.width.toLocaleString()} × {photo.height.toLocaleString()}</dd></div><div><dt>촬영 시각</dt><dd>{photo.captured_at ? `${photo.captured_at.replace('T', ' ')}${photo.capture_timezone ? ` (${photo.capture_timezone})` : ' (시간대 미확인)'}` : '촬영 정보 없음'}</dd></div><div><dt>업로드</dt><dd>{timeLabel(photo.created_at)}</dd></div><div><dt>장소</dt><dd>{photo.location_name || (photo.latitude != null && photo.longitude != null ? `${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)} · 장소명 없음` : '위치 정보 없음')}</dd></div></dl>
-            <h3 className="editor-small-heading">태그</h3><div className="editor-tag-list">{photo.tags.length ? photo.tags.map(tag => <span key={tag}>#{tag}</span>) : <p className="editor-help">분석된 키워드가 없어요.</p>}</div>
+            <h3 className="editor-small-heading">자동 장면 태그</h3><div className="editor-tag-list">{photo.tags.length ? photo.tags.map(tag => <span key={tag}>#{tag}</span>) : <p className="editor-help">분석된 키워드가 없어요.</p>}</div>
+            <p className="editor-help">장면 태그는 분석 결과라 직접 바꿀 수 없어요. 직접 정리하려면 아래 라벨을 사용해 주세요.</p>
+            <div className="editor-section-heading"><h3><Tag size={15}/> 라벨</h3><button className="editor-text-button" onClick={() => setLabelIds(labelIds ? null : (photo.labels || []).map(item => item.id))}>{labelIds ? '닫기' : '수정'}</button></div>
+            {typeof photo.best_shot_score === 'number' && <p className="editor-help">추천 점수 {Math.round(photo.best_shot_score * 100)}점 · 같은 방식으로 측정한 사진끼리만 비교하는 상대 점수예요.</p>}
+            {labelIds ? <div className="editor-label-edit">
+              {labels.error ? <ErrorBox error={labels.error}/> : labels.data?.items.length ? labels.data.items.map(item => <label key={item.id}><input type="checkbox" checked={labelIds.includes(item.id)} onChange={event => setLabelIds(current => event.target.checked ? [...(current || []), item.id] : (current || []).filter(id => id !== item.id))}/><span className="editor-label-chip" style={{ borderColor: item.color, color: item.color }}>{item.name}</span><small>{item.photo_count ?? 0}장</small></label>) : <p className="editor-help">아직 라벨이 없어요. 아래에서 새 라벨을 만들어 주세요.</p>}
+              <form className="editor-label-create" onSubmit={event => { event.preventDefault(); const name = newLabel.trim(); if (!name) return; void act(async () => { const created = await post<Label>(`/albums/${album.id}/labels`, { name, color: newLabelColor }); setLabelIds(current => [...(current || []), created.id]); setNewLabel(''); }, `‘${name}’ 라벨을 만들었어요.`); }}>
+                <label htmlFor="new-label-name" className="editor-sr-only">새 라벨 이름</label>
+                <input id="new-label-name" value={newLabel} maxLength={40} onChange={event => setNewLabel(event.target.value)} placeholder="새 라벨 이름"/>
+                <input type="color" aria-label="라벨 색상" value={newLabelColor} onChange={event => setNewLabelColor(event.target.value)}/>
+                <button className="editor-button small" type="submit" disabled={busy || !newLabel.trim()}><Plus size={14}/>추가</button>
+              </form>
+              <p className="editor-help">라벨은 정리용 표시예요. 승인 대상이나 분석 결과를 바꾸지 않아요.</p>
+              <button className="editor-button primary full" disabled={busy} onClick={() => void act(async () => { await api(`/photos/${photoId}/labels`, { method: 'PUT', body: JSON.stringify({ label_ids: labelIds }) }); setLabelIds(null); }, '라벨을 저장했어요.')}>라벨 저장</button>
+            </div> : <div className="editor-tag-list">{photo.labels?.length ? photo.labels.map(item => <span key={item.id} className="editor-label-chip" style={{ borderColor: item.color, color: item.color }}>{item.name}</span>) : <p className="editor-help">지정한 라벨이 없어요.</p>}</div>}
             <form className="editor-note-form" onSubmit={event => { event.preventDefault(); void act(() => patch(`/photos/${photoId}`, { note, purpose }), '메모와 사진 용도를 저장했어요.'); }}><label htmlFor="photo-purpose">사진 용도<select id="photo-purpose" value={purpose} onChange={event => setPurpose(event.target.value)}><option value="undecided">아직 정하지 않았어요</option><option value="share">함께 공유하기</option><option value="print">인화하기</option><option value="keep">소중히 보관하기</option><option value="social">SNS에 게시하기</option><option value="profile">프로필 사진</option><option value="memory">추억으로 남기기</option><option value="exclude">게시하지 않기</option>{["게시용", "인화용", "보관용", "게시 제외"].includes(purpose) && <option value={purpose}>{purpose}</option>}</select></label><label htmlFor="photo-note">메모<textarea id="photo-note" rows={3} maxLength={2000} value={note} onChange={event => setNote(event.target.value)} placeholder="이 사진에 대한 메모"/></label><button className="editor-button full" disabled={busy} type="submit">사진 정보 저장</button></form>
             {canDelete && <section className="editor-delete-section" aria-labelledby="editor-delete-heading">
               <div><h3 id="editor-delete-heading">사진 삭제</h3><p>사진을 올린 멤버와 앨범 소유자만 삭제할 수 있어요.</p></div>

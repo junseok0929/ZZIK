@@ -1,10 +1,10 @@
-import type { Album, Photo, User, Version } from '../types';
+import type { Album, Label, Photo, User, Version } from '../types';
 import fixtures from './fixtures.json';
 
 export const demoUsers: User[] = ['지수', '민지', '서연', '유진'].map((name, i) => ({
   id: ['jisu', 'minji', 'seoyeon', 'yujin'][i], name, email: `${['jisu', 'minji', 'seoyeon', 'yujin'][i]}@moacut.local`,
 }));
-export type DemoState = { userId: string | null; albums: Album[]; photos: Photo[]; notices: {id: string; message: string; read: boolean; photo_id: string; album_id: string; created_at: string}[] };
+export type DemoState = { userId: string | null; albums: Album[]; photos: Photo[]; labels: Label[]; notices: {id: string; message: string; read: boolean; photo_id: string; album_id: string; created_at: string}[] };
 export const asset = (name: string) => `${import.meta.env.BASE_URL}demo/${name}`;
 export const now = () => new Date().toISOString();
 export const uid = () => crypto.randomUUID();
@@ -28,7 +28,13 @@ export function initialState(): DemoState {
       };
     });
   });
-  return { userId: 'jisu', albums, photos, notices: [] };
+  const labels: Label[] = [
+    { id: 'demo-label-print', album_id: 'demo-album-1', name: '인화 후보', color: '#c2410c', created_at: now() },
+    { id: 'demo-label-share', album_id: 'demo-album-1', name: '단톡 공유', color: '#2563eb', created_at: now() },
+  ];
+  photos.filter(photo => photo.album_id === 'demo-album-1' && photo.selected)
+    .forEach(photo => { photo.labels = [labels[0]]; });
+  return { userId: 'jisu', albums, photos, labels, notices: [] };
 }
 const database = new Promise<IDBDatabase>((resolve, reject) => {
   const request = indexedDB.open('zzik-browser-demo-v1', 1);

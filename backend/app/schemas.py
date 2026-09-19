@@ -48,6 +48,15 @@ class ReviewRequest(BaseModel):
 class CommentCreate(BaseModel):
     body: str = Field(min_length=1,max_length=4000)
     kind: Literal['comment','change_request'] = 'comment'
+HEX_COLOR = r'^#[0-9a-fA-F]{6}$'
+class LabelCreate(BaseModel):
+    name: str = Field(min_length=1,max_length=40)
+    color: str = Field(default='#2563eb',pattern=HEX_COLOR)
+class LabelPatch(BaseModel):
+    name: str | None = Field(default=None,min_length=1,max_length=40)
+    color: str | None = Field(default=None,pattern=HEX_COLOR)
+class LabelsSet(BaseModel):
+    label_ids: list[str] = Field(default_factory=list,max_length=60)
 class GroupPatch(BaseModel):
     name: str | None = Field(default=None,min_length=1,max_length=80)
     person_id: str | None = None

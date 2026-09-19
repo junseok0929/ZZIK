@@ -96,9 +96,37 @@ def validate_reference(data: bytes, original_hash: str | None = None) -> dict:
     return dict(result, face_count=1)
 
 
-LABEL_TAGS = {'Sea': '바다', 'Ocean': '바다', 'Beach': '바다', 'Mountain': '산', 'Food': '음식',
-              'Cafe': '카페', 'Coffee Shop': '카페', 'Night': '야경', 'Sunset': '노을',
-              'Flower': '꽃', 'Forest': '숲', 'City': '도시'}
+# Rekognition general labels mapped to the Korean scene tags the UI filters on. Labels
+# outside this vocabulary stay in analysis_metadata rather than becoming user-facing tags.
+LABEL_TAGS = {
+    'Sea': '바다', 'Ocean': '바다', 'Beach': '바다', 'Coast': '바다', 'Shoreline': '바다',
+    'Water': '물', 'Lake': '물', 'River': '물', 'Waterfall': '물', 'Swimming Pool': '물',
+    'Mountain': '산', 'Mountain Range': '산', 'Hill': '산', 'Cliff': '산', 'Valley': '산',
+    'Food': '음식', 'Meal': '음식', 'Dish': '음식', 'Dessert': '음식', 'Bread': '음식',
+    'Seafood': '음식', 'Noodle': '음식', 'Fruit': '음식', 'Drink': '음료', 'Beverage': '음료',
+    'Coffee': '카페', 'Coffee Cup': '카페', 'Cafe': '카페', 'Coffee Shop': '카페', 'Cafeteria': '카페',
+    'Restaurant': '식당', 'Bar': '식당', 'Dining Table': '식당',
+    'Night': '야경', 'Nightlife': '야경', 'Moon': '야경', 'Lighting': '야경',
+    'Sunset': '노을', 'Sunrise': '노을', 'Dusk': '노을', 'Dawn': '노을', 'Sky': '하늘', 'Cloud': '하늘',
+    'Flower': '꽃', 'Blossom': '꽃', 'Cherry Blossom': '꽃', 'Plant': '자연', 'Tree': '자연',
+    'Nature': '자연', 'Grass': '자연', 'Field': '자연', 'Garden': '자연', 'Forest': '숲', 'Woodland': '숲',
+    'Jungle': '숲', 'Snow': '눈', 'Ice': '눈', 'Winter': '눈', 'Rain': '비', 'Storm': '비', 'Fog': '비',
+    'City': '도시', 'Urban': '도시', 'Town': '도시', 'Downtown': '도시', 'Metropolis': '도시',
+    'Building': '건물', 'Architecture': '건물', 'House': '건물', 'Hotel': '건물', 'Tower': '건물',
+    'Bridge': '건물', 'Temple': '문화재', 'Shrine': '문화재', 'Palace': '문화재', 'Castle': '문화재',
+    'Museum': '문화재', 'Monument': '문화재', 'Church': '문화재',
+    'Road': '거리', 'Street': '거리', 'Alley': '거리', 'Path': '거리', 'Sidewalk': '거리',
+    'Market': '시장', 'Shop': '시장', 'Bazaar': '시장',
+    'Park': '공원', 'Playground': '공원', 'Amusement Park': '공원',
+    'Boat': '이동', 'Ship': '이동', 'Airplane': '이동', 'Airport': '이동', 'Train': '이동',
+    'Train Station': '이동', 'Car': '이동', 'Bicycle': '이동', 'Bus': '이동',
+    'Animal': '동물', 'Pet': '동물', 'Dog': '동물', 'Cat': '동물', 'Bird': '동물',
+    'Indoors': '실내', 'Room': '실내', 'Living Room': '실내', 'Bedroom': '실내',
+    'Outdoors': '야외', 'Camping': '야외', 'Tent': '야외', 'Hiking': '야외',
+    'Selfie': '셀피', 'Portrait': '인물', 'Face': '인물', 'Head': '인물',
+    'Party': '모임', 'Festival': '모임', 'Crowd': '모임', 'Wedding': '모임',
+}
+SCENE_TAGS = sorted(set(LABEL_TAGS.values()))
 
 
 def analyze(data: bytes, references: list[dict] | None = None, original_hash: str | None = None,

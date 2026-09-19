@@ -1,9 +1,9 @@
-import type { Album, Person, Photo, Version } from '../types';
+import type { Album, Label, Person, Photo, SmartCard, Version } from '../types';
 import { demoUsers, initialState, now, readState, uid, updateState, versionStatus } from './store';
 import type { DemoState } from './store';
 import { dataUrl, imageFile, render } from './images';
 
-type Body = { email?: string; user_id?: string | null; name?: string; description?: string; timezone?: string; code?: string; note?: string; purpose?: string; selected?: boolean; brightness?: number; saturation?: number; parent_id?: string; confirmed?: boolean; person_ids?: string[]; body?: string; kind?: string };
+type Body = { email?: string; user_id?: string | null; name?: string; description?: string; timezone?: string; code?: string; note?: string; purpose?: string; selected?: boolean; brightness?: number; saturation?: number; parent_id?: string; confirmed?: boolean; person_ids?: string[]; label_ids?: string[]; color?: string; body?: string; kind?: string };
 class DemoError extends Error { constructor(message: string, public status = 400) { super(message); } }
 const requireValue = <T>(value: T | undefined, message: string): T => { if (!value) throw new DemoError(message, 404); return value; };
 const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
@@ -29,6 +29,8 @@ function settings(body: Body) {
 async function route(state: DemoState, path: string, method: string, body: Body, form?: FormData): Promise<unknown> {
   const [pathname, search = ''] = path.split('?'), params = new URLSearchParams(search);
   const [, resource, id, action, child] = pathname.split('/');
+  // Stored browser state predates labels; treat a missing list as empty rather than failing.
+  state.labels ||= [];
   if (path === '/config') return {face_provider: 'fixture', storage_backend: 'browser-demo', demo_enabled: true};
   if (path === '/demo/reset') { Object.assign(state, initialState()); return {ok: true}; }
   if (path === '/demo/switch' || path === '/auth/login') {
@@ -93,17 +95,82 @@ async function route(state: DemoState, path: string, method: string, body: Body,
     }
     if (action === 'photos') {
       const people = (params.get('people') || '').split(',').filter(Boolean), filter = params.get('filter'), query = (params.get('q') || '').toLowerCase();
+      const from = params.get('date_from') || '', to = params.get('date_to') || '';
       let items = photos.filter(photo => {
         if (params.get('mine') === 'true' && !photo.people.some(p => p.user_id === user.id)) return false;
         if (people.length && !(params.get('match') === 'any' ? people.some(id => photo.people.some(p => p.id === id)) : people.every(id => photo.people.some(p => p.id === id)))) return false;
         if (filter === 'solo' && photo.face_count !== 1 || filter === 'group' && photo.face_count < 2 || filter === 'no_faces' && photo.face_count !== 0 || filter === 'review' && photo.analysis_status !== 'failed' || filter === 'final' && !photo.final_version_id) return false;
         if (params.get('tag') && !photo.tags.includes(params.get('tag')!)) return false;
         if (params.get('date') && !photo.captured_at?.startsWith(params.get('date')!)) return false;
+        if (params.get('selected') === 'true' && !photo.selected) return false;
+        if (params.get('recommended') === 'true' && typeof photo.best_shot_score !== 'number') return false;
+        if (params.get('label') && !photo.labels?.some(l => l.id === params.get('label'))) return false;
+        if (params.get('location') && !(photo.location_name || '').includes(params.get('location')!)) return false;
+        if (from || to) { const day = (photo.captured_at || photo.created_at).slice(0, 10); if ((from && day < from) || (to && day > to)) return false; }
         return !query || `${photo.filename} ${photo.people.map(p => p.name).join(' ')} ${photo.tags.join(' ')} ${photo.note || ''}`.toLowerCase().includes(query);
       });
-      items = items.sort((a, b) => (params.get('sort') === 'newest' ? -1 : 1) * a.created_at.localeCompare(b.created_at));
+      const sort = params.get('sort');
+      items = sort === 'best' ? items.sort((a, b) => (b.best_shot_score ?? -1) - (a.best_shot_score ?? -1))
+        : items.sort((a, b) => (sort === 'newest' ? -1 : 1) * a.created_at.localeCompare(b.created_at));
       const page = Math.max(1, Number(params.get('page') || 1)), pageSize = 24;
-      return {items: items.slice((page - 1) * pageSize, page * pageSize).map(photoView), total: items.length, page, page_size: pageSize, stats: stats(photos)};
+      // The browser demo has no Korean phrase parser; reporting null keeps the interface honest.
+      return {items: items.slice((page - 1) * pageSize, page * pageSize).map(photoView), total: items.length, page, page_size: pageSize, stats: stats(photos), interpretation: null};
+    }
+    if (action === 'labels') {
+      const albumLabels = state.labels.filter(l => l.album_id === album.id);
+      if (method === 'POST') {
+        const name = body.name?.trim();
+        if (!name) throw new DemoError('라벨 이름을 입력해 주세요.');
+        if (albumLabels.some(l => l.name === name)) throw new DemoError('같은 이름의 라벨이 이미 있어요.');
+        const label: Label = { id: uid(), album_id: album.id, name, color: body.color || '#2563eb', created_at: now(), photo_count: 0 };
+        state.labels.push(label); return label;
+      }
+      const items = albumLabels.map(l => ({ ...l, photo_count: photos.filter(p => p.labels?.some(x => x.id === l.id)).length }));
+      return { items, total: items.length };
+    }
+    if (action === 'smart-albums') {
+      const count = (list: Photo[]) => list.length;
+      const cover = (list: Photo[]) => list[0]?.thumbnail_url || null;
+      const make = (cardId: string, title: string, list: Photo[], query: Record<string, string>, subtitle?: string, color?: string): SmartCard | null =>
+        list.length ? { id: cardId, title, subtitle: subtitle || null, count: count(list), cover_url: cover(list), color: color || null, query } : null;
+      const withPerson = (personId: string) => photos.filter(p => p.people.some(person => person.id === personId));
+      const basics = [
+        make('all', '전체 사진', photos, {}),
+        make('mine', '내가 나온 사진', photos.filter(p => p.people.some(person => person.user_id === user.id)), { filter: 'mine' }),
+        make('group', '단체사진', photos.filter(p => p.face_count >= 2), { filter: 'group' }, '2인 이상 등장'),
+        make('solo', '혼자 나온 사진', photos.filter(p => p.face_count === 1), { filter: 'solo' }),
+        make('no_faces', '얼굴 미검출', photos.filter(p => p.analysis_status === 'completed' && p.face_count === 0), { filter: 'no_faces' }, '풍경·사물 사진'),
+        make('review', '확인 필요', photos.filter(p => p.analysis_status === 'failed'), { filter: 'review' }),
+        make('selected', '함께 고른 사진', photos.filter(p => p.selected), { selected: 'true' }),
+        make('final', '최종본', photos.filter(p => p.final_version_id), { filter: 'final' }),
+      ].filter(Boolean) as SmartCard[];
+      const personCards = album.people.map(person => make(`person-${person.id}`, person.name, withPerson(person.id), { people: person.id }, '등장 사진')).filter(Boolean) as SmartCard[];
+      const combos = new Map<string, Photo[]>();
+      for (const photo of photos) {
+        const ids = photo.people.map(p => p.id).sort();
+        if (ids.length >= 2) combos.set(ids.join(','), [...(combos.get(ids.join(',')) || []), photo]);
+      }
+      const everyone = album.people.map(p => p.id).sort().join(',');
+      const comboCards = [...combos.entries()]
+        .sort((a, b) => (a[0] === everyone ? -1 : b[0] === everyone ? 1 : b[1].length - a[1].length))
+        .slice(0, 9)
+        .map(([key, list]) => make(`combo-${key}`, key.split(',').map(pid => album.people.find(p => p.id === pid)?.name || '인물').join(' · '), list, { people: key, match: 'all' }, key === everyone ? '앨범 인물 전원' : `${key.split(',').length}명 함께`))
+        .filter(Boolean) as SmartCard[];
+      const tags = new Map<string, Photo[]>();
+      for (const photo of photos) for (const tag of photo.tags) tags.set(tag, [...(tags.get(tag) || []), photo]);
+      const tagCards = [...tags.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 12)
+        .map(([tag, list]) => make(`tag-${tag}`, `#${tag}`, list, { tag }, '장면 태그')).filter(Boolean) as SmartCard[];
+      const labelCards = state.labels.filter(l => l.album_id === album.id)
+        .map(l => make(`label-${l.id}`, l.name, photos.filter(p => p.labels?.some(x => x.id === l.id)), { label: l.id }, '멤버 라벨', l.color)).filter(Boolean) as SmartCard[];
+      const sections = [
+        { id: 'basic', title: '기본 분류', items: basics },
+        { id: 'person', title: '인물별', items: personCards },
+        { id: 'combination', title: '인물 조합', items: comboCards },
+        { id: 'tag', title: '장면', items: tagCards },
+        { id: 'label', title: '라벨', items: labelCards },
+      ].filter(section => section.items.length);
+      return { sections, total: photos.length, analyzing: 0, people_total: album.people.length,
+        notice: '체험 모드는 저장된 샘플 분석 결과로 묶음을 만들어요. 장소 정보는 샘플에 없어요.' };
     }
     if (action === 'board') return Object.fromEntries(['selection', 'editing', 'review', 'final'].map(key => [key, photos.map(photoView).filter(p => p.board_status === key)]));
     if (action === 'analysis-status') return {provider: 'fixture', mode: 'sample', total: photos.length, recorded_runs: 0, calls: 0, elapsed_ms: 0, stats: stats(photos), failures: photos.filter(p => p.analysis_status === 'failed').map(p => ({photo_id: p.id, filename: p.filename, error: p.analysis_error}))};
@@ -122,6 +189,14 @@ async function route(state: DemoState, path: string, method: string, body: Body,
     if (action === 'people') {
       photo.people = album.people.filter(p => body.person_ids?.includes(p.id)).map(p => ({...p, source: 'manual'}));
       invalidateReview(photo); return photoView(photo);
+    }
+    if (action === 'labels') {
+      const wanted = body.label_ids || [];
+      const available = state.labels.filter(l => l.album_id === album.id);
+      if (wanted.some(labelId => !available.some(l => l.id === labelId))) throw new DemoError('이 앨범의 라벨만 지정할 수 있어요.');
+      // Labels are organisational only; approvals and analysis stay untouched.
+      photo.labels = available.filter(l => wanted.includes(l.id));
+      return photoView(photo);
     }
     if (action === 'preview') { const values = settings(body); return render(photo, values.brightness, values.saturation); }
     if (action === 'versions') {
@@ -157,6 +232,22 @@ async function route(state: DemoState, path: string, method: string, body: Body,
     } else if (method === 'PATCH' && body.name?.trim()) version.name = body.name.trim();
     else throw new DemoError('체험에서 지원하지 않는 보정 요청입니다.');
     return versionStatus(version);
+  }
+  if (resource === 'labels') {
+    const label = requireValue(state.labels.find(l => l.id === id), '라벨을 찾지 못했어요.');
+    requireValue(state.albums.find(a => a.id === label.album_id && a.members.some(m => m.id === user.id)), '앨범 멤버를 선택해 주세요.');
+    if (method === 'DELETE') {
+      state.labels = state.labels.filter(l => l.id !== id);
+      state.photos.forEach(photo => { if (photo.labels) photo.labels = photo.labels.filter(l => l.id !== id); });
+      return { ok: true };
+    }
+    if (method === 'PATCH') {
+      if (body.name !== undefined) { const name = body.name.trim(); if (!name) throw new DemoError('라벨 이름을 입력해 주세요.'); label.name = name; }
+      if (body.color) label.color = body.color;
+      state.photos.forEach(photo => { photo.labels = photo.labels?.map(l => l.id === id ? { ...l, name: label.name, color: label.color } : l); });
+      return label;
+    }
+    return label;
   }
   if (resource === 'people') {
     const album = requireValue(state.albums.find(a => a.people.some(p => p.id === id) && a.members.some(m => m.id === user.id)), '인물을 찾지 못했어요.');

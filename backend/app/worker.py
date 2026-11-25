@@ -242,6 +242,9 @@ def process_claim(job_id: str, token: str) -> bool:
 
 
 def process_one() -> bool:
+    if settings.face_analysis_provider == 'lambda':
+        # Analysis runs in the S3-triggered Lambda; the worker only drains cleanup.
+        return False
     claim = claim_job()
     if claim is None:
         return False

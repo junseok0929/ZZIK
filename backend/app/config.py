@@ -28,5 +28,8 @@ class Settings(BaseSettings):
     aws_timeout_seconds: int = 20
     geocoding_url: str = ''
     geocoding_user_agent: str = 'MoaCut/1.0'
+    # FACE_ANALYSIS_PROVIDER=lambda: an S3-triggered Lambda calls the Claude API
+    # and posts results to /api/internal/analysis-results with this token.
+    internal_api_token: str = ''
 
 settings = Settings()

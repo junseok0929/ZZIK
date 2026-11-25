@@ -248,7 +248,7 @@ export default function Editor({ photoId, album, user, onClose, onChanged, onDel
               {hasAnalysisRecord ? <>
                 <p>{isSample ? '등록된 샘플을 처리한 기록이에요. 실제 얼굴 분석 성능을 나타내지는 않아요.' : '서버에 저장된 최근 분석 기록이에요.'}{photo.analysis_status !== 'completed' && ' 현재 진행 중이거나 실패한 재분석 기록과 다를 수 있어요.'}</p>
                 <dl>
-                  {photo.analysis_provider && <div><dt>분석 방식</dt><dd>{isSample ? '지정된 샘플 확인' : photo.analysis_provider === 'rekognition' ? 'AWS 얼굴 분석' : photo.analysis_provider}</dd></div>}
+                  {photo.analysis_provider && <div><dt>분석 방식</dt><dd>{isSample ? '지정된 샘플 확인' : photo.analysis_provider === 'rekognition' ? 'AWS 얼굴 분석' : photo.analysis_provider === 'claude' ? 'Claude 사진 분류 (장면·태그·인원 수)' : photo.analysis_provider}</dd></div>}
                   {recordedDate && <div><dt>기록 시각</dt><dd>{new Date(recordedDate).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}<small>한국시간</small></dd></div>}
                   {recordedDuration !== null && <div><dt>처리 시간</dt><dd>{recordedDuration < 1000 ? `${recordedDuration.toLocaleString('ko-KR')}밀리초` : `${(recordedDuration / 1000).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}초`}</dd></div>}
                   {recordedCalls !== null && <div><dt>서비스 호출</dt><dd>{recordedCalls.toLocaleString('ko-KR')}회</dd></div>}

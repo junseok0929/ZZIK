@@ -91,6 +91,13 @@ class S3Storage:
                 return False
             raise
 
+    def retrigger(self, key: str, content_type: str = "image/jpeg"):
+        """Copy an object onto itself so S3 emits a new ObjectCreated event."""
+        source = {"Bucket": self.bucket, "Key": self._key(key)}
+        self.client.copy_object(Bucket=self.bucket, Key=self._key(key), CopySource=source,
+                                MetadataDirective="REPLACE", ContentType=content_type,
+                                ServerSideEncryption="AES256")
+
     def signed_url(self, key: str, expires_in: int = 120, filename: str | None = None) -> str:
         params = {"Bucket": self.bucket, "Key": self._key(key)}
         if filename:

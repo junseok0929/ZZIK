@@ -1,119 +1,149 @@
-# 1단계 배포: S3 + EC2 + Lambda + Claude API
+<p align="center">
+  <img src="docs/assets/zzik-mark.svg" alt="찍" width="64" />
+</p>
 
-사진은 S3에, 앱(Nginx·FastAPI·PostgreSQL)은 퍼블릭 EC2 한 대에 두고, 사진 분석은 S3 업로드 이벤트로 실행되는 Lambda가 Claude API로 한다.
+<h1 align="center">찍 · ZZIK</h1>
 
-```
-사용자 → EC2(Nginx·FastAPI·PostgreSQL) → S3(display.jpg 저장)
-                 ↑                              │ 업로드 이벤트
-                 └──── 분석 결과(토큰) ──── Lambda ──→ Claude API
-```
+<p align="center">
+  여행 사진을 함께 모으고, 내가 나온 사진을 찾고, 마음에 드는 보정본을 함께 고릅니다.
+</p>
 
-- 리전은 모두 서울(`ap-northeast-2`). VPC는 기본 VPC의 퍼블릭 서브넷만 쓴다.
-- Claude는 사진의 장면·태그·인원 수만 분류한다. 사람이 누구인지는 판별하지 않으므로 인물 연결은 앱에서 직접 지정한다.
-- 아래 `BUCKET`, `ACCOUNT_ID`, `EC2_IP` 같은 대문자 값은 본인 값으로 바꾼다.
+<p align="center">
+  <a href="https://seopseopi.github.io/zzik/"><strong>체험 사이트 열기</strong></a>
+  &nbsp;|&nbsp; <a href="docs/DEMO_GUIDE.md">사용 가이드</a>
+  &nbsp;|&nbsp; <a href="docs/README.md">문서</a>
+  &nbsp;|&nbsp; <a href="https://github.com/seopseopi/zzik/issues">문의</a>
+</p>
 
-## 0. 준비물
+<p align="center">
+  <a href="https://github.com/seopseopi/zzik/actions/workflows/ci.yml"><img src="https://github.com/seopseopi/zzik/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <img src="https://img.shields.io/badge/React-19-2864ff?logo=react&amp;logoColor=white" alt="React 19" />
+  <img src="https://img.shields.io/badge/TypeScript-7-2864ff?logo=typescript&amp;logoColor=white" alt="TypeScript 7" />
+  <img src="https://img.shields.io/badge/FastAPI-Python%203.13-2864ff?logo=fastapi&amp;logoColor=white" alt="FastAPI · Python 3.13" />
+  <img src="https://img.shields.io/badge/PostgreSQL-17-2864ff?logo=postgresql&amp;logoColor=white" alt="PostgreSQL 17" />
+</p>
 
-| 항목 | 내용 |
-| --- | --- |
-| 권한 | EC2·S3·Lambda·IAM 역할 연결·CloudWatch Logs·Budgets (역할 생성이 막혀 있으면 아래 두 역할을 미리 받는다) |
-| Claude API 키 | 강사에게 받는다. 채팅·저장소에 붙여 넣지 않고 Lambda 환경 변수에만 넣는다 |
-| 내부 토큰 | `openssl rand -hex 32` 로 만든 값. EC2 `.env`와 Lambda에 같은 값을 넣는다 |
+---
 
-## 1. 예산 알림
+## 소개
 
-콘솔 → Billing → Budgets 에서 월 예산(예: 1만 원)과 80% 알림을 만든다.
+찍은 여러 사람이 찍은 여행 사진을 하나의 앨범에서 정리하는 웹 앱입니다. 같은 사진에 나온 사람은 각자의 **내 사진**에서 찾을 수 있고, 밝기와 채도를 바꾼 보정본을 원본과 비교할 수 있습니다. 사진에 나온 멤버가 모두 승인하면 하나의 최종본으로 정해 내려받습니다.
 
-## 2. S3 버킷
+**앨범 만들기 → 멤버 초대 → 사진 업로드 → 인물별 찾기 → 보정본 저장 → 함께 승인 → 최종본 다운로드**
+
+## 화면
+
+![찍 데스크톱 사진 라이브러리](docs/screenshots/desktop.png)
+
+<p align="center">
+  <img src="docs/screenshots/mobile-library.png" alt="모바일 내 사진 · 인물 필터" width="290" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/mobile-approval.png" alt="모바일 보정본 비교 · 두 멤버 승인" width="290" />
+</p>
+
+현재 앱에서 직접 캡처한 화면입니다. 사진과 인물은 디자인 확인용 샘플이며, 승인 화면은 두 계정 통합 테스트 결과입니다. [캡처와 샘플 안내](docs/screenshots/README.md)
+
+## 주요 기능
+
+| 화면 | 기능 |
+| :--- | :--- |
+| **앨범** | 생성·초대코드 참여, 이름·소개·시간대 수정, 멤버 관리 |
+| **사진 라이브러리** | 여러 파일 업로드, 인물·혼자/함께·태그·날짜 필터, 검색·정렬, 선택 ZIP 다운로드 |
+| **내 사진** | 연결된 내 인물이 나온 사진, 여러 인물 AND/OR 조합 |
+| **사진 보정** | 밝기·채도 조절, 원본 비교, 이전 보정본에서 새 버전 저장 |
+| **함께 고르기** | 등장 멤버 확인, 버전별 승인·취소, 전원 합의 후 최종본 지정 |
+| **사진 정보** | 인물 직접 수정, 촬영 정보·위치·태그, 메모·용도, 사진 삭제 |
+| **정리 현황** | 대기·진행·완료·실패 장수, 실패 이유·분석 기록·재시도 |
+| **협업** | 보정본 댓글·수정 요청, 진행 보드, 앱 내 알림 |
+
+원본은 보존합니다. 승인을 취소하거나 승인 대상이 바뀌면 해당 최종본 지정을 해제합니다. 앨범에 참여한 계정만 사진과 보정본에 접근할 수 있습니다.
+
+## 팀원 체험
+
+**[체험 사이트 열기 →](https://seopseopi.github.io/zzik/)**
+
+설치나 로그인 없이 바로 둘러볼 수 있습니다. 상단에서 지수·민지·서연·유진을 바꿔 사진 필터, 보정본 저장, 승인과 최종본 다운로드를 체험하세요. 변경사항은 **각자의 브라우저에만 저장**되며 팀원 사이에 동기화되지 않습니다. 업로드한 사진도 서버로 전송하지 않습니다. 처음 상태로 돌아가려면 상단의 **체험 초기화**를 누르세요.
+
+체험 사이트는 GitHub Pages에서 실행되는 별도 브라우저 모드입니다. 실제 회원가입·초대 전달·얼굴 자동 분석은 실행하지 않습니다. 운영 서버 코드는 이 저장소에 포함되어 있으며 아래 방법으로 별도로 실행합니다. [체험 배포 구조](docs/DEMO_DEPLOYMENT.md)
+
+### 실제 서버로 로컬 실행할 때
+
+로컬 실행 후 **샘플 앨범 둘러보기**를 누르면 지수 계정으로 들어갑니다. 다른 브라우저나 시크릿 창에서 민지로 로그인하면 두 사람의 승인 흐름을 확인할 수 있습니다.
+
+| 샘플 계정 | 이메일 |
+| :--- | :--- |
+| 지수 | `jisu@moacut.local` |
+| 민지 | `minji@moacut.local` |
+| 서연 | `seoyeon@moacut.local` |
+| 유진 | `yujin@moacut.local` |
+
+샘플 비밀번호는 `MoacutDemo123!`입니다. 기존 데이터와의 호환을 위해 개발용 계정 주소는 유지했습니다. 팀에서 실제로 사용할 때는 회원가입 후 별도 앨범을 만들고 초대코드를 공유하세요. [두 계정으로 시연하기](docs/DEMO_GUIDE.md)
+
+> **자동 분석 범위:** 기본 실행은 지정된 샘플의 파일 해시를 확인하는 fixture 모드입니다. 새 사진의 업로드·보정·수동 인물 지정·승인은 가능하지만 실제 얼굴 자동 분석은 AWS Rekognition 연결이 필요합니다. 샘플 결과를 실제 AI 정확도로 표시하지 않습니다.
+
+## 바로 실행
+
+### macOS
+
+**Node.js 24 이상 · Python 3.13 · PostgreSQL 17**이 필요합니다.
 
 ```bash
-aws s3api create-bucket --bucket BUCKET --region ap-northeast-2 \
-  --create-bucket-configuration LocationConstraint=ap-northeast-2
-aws s3api put-public-access-block --bucket BUCKET --public-access-block-configuration \
-  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+git clone https://github.com/seopseopi/zzik.git
+cd zzik
+brew install postgresql@17  # 미설치 시 한 번
+bash scripts/dev.sh
 ```
 
-사진은 공개하지 않는다. 앱이 권한을 확인한 뒤 120초짜리 서명 URL로만 내려준다.
+**http://127.0.0.1:5173** 에 접속합니다. 의존성 설치, 로컬 DB, 마이그레이션, 샘플 데이터, API·분석 worker·프론트를 함께 준비합니다. 종료해도 로컬 데이터는 남습니다.
 
-## 3. IAM 역할 두 개
-
-| 역할 | 신뢰 대상 | 붙일 정책 |
-| --- | --- | --- |
-| `zzik-ec2-role` (인스턴스 프로파일) | EC2 | `iam/ec2-s3-policy.json` (BUCKET 치환) |
-| `zzik-lambda-role` | Lambda | `iam/lambda-s3-read-policy.json` (BUCKET 치환) + AWS 관리형 `AWSLambdaBasicExecutionRole` |
-
-EC2와 Lambda 모두 액세스 키 없이 역할로 S3에 접근한다.
-
-## 4. EC2
-
-- AMI: Amazon Linux 2023, 유형: `t3.small` 이상, 기본 VPC의 퍼블릭 서브넷, 공인 IP 자동 할당
-- IAM 인스턴스 프로파일: `zzik-ec2-role`
-- 보안 그룹 인바운드: HTTP 80 (0.0.0.0/0), SSH 22 (**내 IP만**). PostgreSQL 5432는 열지 않는다
-- 사용자 데이터: `ec2-user-data.sh` 내용을 붙여 넣는다 (Docker, Compose, 스왑, 저장소 clone)
-
-## 5. 찍 배포 (EC2에 SSH 접속 후)
+### Docker
 
 ```bash
-cd ~/zzik
-cp deploy/aws-stage1/env.aws.example .env
-vi .env        # POSTGRES_PASSWORD, S3_BUCKET, INTERNAL_API_TOKEN, ALLOWED_ORIGINS=http://EC2_IP
-chmod 600 .env
+git clone https://github.com/seopseopi/zzik.git
+cd zzik
+cp .env.example .env
 docker compose up --build -d
-curl --fail http://localhost/api/health/ready
+docker compose exec api python -m app.seed
 ```
 
-브라우저에서 `http://EC2_IP` 로 접속해 회원가입 → 앨범 생성 → 사진 업로드 → 보정 → 승인 → 다운로드를 확인한다. 이 시점에는 분석 상태가 "대기"로 남는다(Lambda를 아직 연결하지 않았으므로).
+**http://localhost:8080** 에 접속합니다. `docker compose down`은 DB와 사진 볼륨을 보존합니다. Docker 구성의 실행 검증 여부는 [구현 상태](docs/IMPLEMENTATION_STATUS.md)에 기록합니다.
 
-## 6. Lambda
+## 개발
 
-```bash
-cd lambda/analyze_photo && zip -j /tmp/analyze_photo.zip handler.py && cd -
-aws lambda create-function --function-name zzik-analyze-photo --region ap-northeast-2 \
-  --runtime python3.12 --handler handler.lambda_handler --zip-file fileb:///tmp/analyze_photo.zip \
-  --role arn:aws:iam::ACCOUNT_ID:role/zzik-lambda-role --timeout 120 --memory-size 256 \
-  --environment "Variables={CLAUDE_API_KEY=강사에게_받은_키,RESULT_URL=http://EC2_IP/api/internal/analysis-results,INTERNAL_API_TOKEN=EC2와_같은_토큰,CLAUDE_MODEL=claude-haiku-5-5,CLAUDE_TEMPERATURE=0}"
-# 한꺼번에 많이 호출되지 않도록 동시 실행 상한
-aws lambda put-function-concurrency --function-name zzik-analyze-photo --reserved-concurrent-executions 5
+React·TypeScript·Vite 프론트, FastAPI API, 별도 분석 worker, PostgreSQL로 구성되어 있습니다. 사진은 기본적으로 로컬 파일에 저장하며 비공개 S3 어댑터도 포함합니다.
+
+```text
+ZZIK/
+├── frontend/        # React 화면 · Playwright 통합 테스트 · 샘플 이미지
+├── backend/         # API · DB 모델 · 분석 worker · 보정 렌더러 · 테스트
+├── infra/           # Dockerfile · Nginx
+├── scripts/         # 로컬 실행 · 연결 점검 · 재시작 검증
+└── docs/            # 사용법 · API · 설계 · 배포 · 검증 기록
 ```
 
-- 환경 변수에 키를 넣을 때는 터미널 기록에 남지 않도록 콘솔(Lambda → 구성 → 환경 변수)에서 넣어도 된다.
-- `CLAUDE_MODEL` 은 받은 키로 쓸 수 있는 모델 이름으로 맞춘다. 최신 모델 이름은 https://docs.claude.com 에서 확인한다.
-- 일부 모델이 `temperature` 를 받지 않으면 `CLAUDE_TEMPERATURE` 를 빈 값으로 둔다.
+| 명령 | 역할 |
+| :--- | :--- |
+| `npm --prefix frontend run build` | TypeScript 검사와 프론트 빌드 |
+| `npm --prefix frontend run test:e2e` | 실행 중인 앱에서 두 계정·모바일 통합 검증 |
+| `.venv/bin/python -m pytest -q backend/tests` | 백엔드 검사. DB 테스트에는 전용 `TEST_DATABASE_URL` 필요 |
+| `.venv/bin/python scripts/check_connections.py` | DB·스키마·저장·샘플 설정 점검 |
 
-## 7. S3 → Lambda 트리거
+로컬 검증: **백엔드 36개, 브라우저 통합 3개 통과**, 프론트 빌드 성공. 브라우저 검증은 실제 업로드 → 보정 → 모바일 승인 → PC 최종본 지정 → 다운로드 → 승인 취소를 포함합니다. [검증 결과와 재현 조건](docs/IMPLEMENTATION_STATUS.md)
 
-```bash
-aws lambda add-permission --function-name zzik-analyze-photo --statement-id s3-invoke \
-  --action lambda:InvokeFunction --principal s3.amazonaws.com \
-  --source-arn arn:aws:s3:::BUCKET --source-account ACCOUNT_ID
-# s3-notification.json 의 LAMBDA_ARN 을 함수 ARN 으로 바꾼 뒤
-aws s3api put-bucket-notification-configuration --bucket BUCKET \
-  --notification-configuration file://deploy/aws-stage1/s3-notification.json
-```
+`.env`, 비밀키, 로컬 DB, 실제 업로드 파일, 로그인 세션과 로그는 저장소에 포함하지 않습니다. AWS 실연동·정확도·부하 검증은 별도이며, 현재 상태는 문서에 구분해 기록했습니다.
 
-트리거는 `moacut/albums/…/display.jpg` 에만 걸린다. 원본(최대 25MB) 대신 1600px 표시용 이미지를 보내 Claude 이미지 한도와 비용을 줄인다.
+## 문서
 
-## 8. 동작 확인
+| 가이드 | 내용 |
+| :--- | :--- |
+| [사용 가이드](docs/DEMO_GUIDE.md) | 샘플 계정과 두 사람의 보정·승인 흐름 |
+| [개발 환경](docs/DEVELOPMENT.md) | 개별 프로세스 실행·환경변수·테스트 |
+| [설계](docs/ARCHITECTURE.md) | 데이터 구조·인물 분석·보정·합의 정책 |
+| [API 계약](docs/API_CONTRACT.md) | 인증·앨범·사진·버전·승인 API |
+| [체험 사이트 배포](docs/DEMO_DEPLOYMENT.md) | GitHub Pages·브라우저 저장·인물 전환 |
+| [실제 서버 배포](docs/AWS_DEPLOYMENT.md) | AWS 구성·HTTPS·운영 설정·롤백 |
+| [구현 상태](docs/IMPLEMENTATION_STATUS.md) | 실제 통과한 검증과 남은 조건 |
+| [연결 점검](docs/CONNECTIONS.md) | 실제 연결과 샘플 모드의 경계 |
+| [자산 안내](docs/ASSETS.md) | 사용자 제공 참고 이미지·샘플 출처 |
 
-1. 사진을 올리면 수십 초 안에 분석 상태가 "완료"로 바뀌고 장면·태그가 붙는다.
-2. 태그 필터와 "혼자/함께" 필터(사람 수 기준)로 분류가 보인다.
-3. Lambda 로그: CloudWatch Logs `/aws/lambda/zzik-analyze-photo` 에 `Saved …` 가 찍힌다.
-4. 분석 실패 사진은 앱의 "다시 분석"을 누르면 EC2가 S3 객체를 자기 자신에게 복사해 Lambda를 다시 실행한다.
-
-## 9. 문제 해결
-
-| 증상 | 확인할 것 |
-| --- | --- |
-| 계속 "대기" | S3 트리거 접두사·접미사, Lambda 권한(`add-permission`), Lambda 로그 |
-| Lambda 로그에 401 | Lambda와 EC2 `.env` 의 `INTERNAL_API_TOKEN` 이 같은지 |
-| Lambda 로그에 연결 시간 초과 | `RESULT_URL` 의 EC2 IP, 보안 그룹 80 포트 |
-| 분석 "실패" + `CLAUDE_ANALYSIS_FAILED` | API 키, 모델 이름, 사용량 한도 |
-| 로그인 직후 403 | `.env` 의 `ALLOWED_ORIGINS` 가 브라우저 주소(`http://EC2_IP`)와 같은지 |
-
-EC2를 중지했다가 켜면 공인 IP가 바뀐다. 그때는 `.env` 의 `ALLOWED_ORIGINS` 와 Lambda 의 `RESULT_URL` 을 함께 바꾼다.
-
-## 10. 한계와 정리
-
-- 도메인·HTTPS 가 없어 로그인 정보가 HTTP 로 오간다. 실습용으로만 쓰고 실제 비밀번호는 쓰지 않는다.
-- EC2 한 대라 단일 장애 지점이다. 이걸 없애는 것이 계획서의 확장 단계(ALB+ASG, RDS, SQS 등)다.
-- 실습 후: `docker compose exec -T db pg_dump -U moacut -d moacut -Fc > backup.dump` 로 백업하고, EC2 종료 → S3 객체·버킷 삭제 → Lambda 삭제 순서로 정리한다.
+오류와 개선 의견은 [Issues](https://github.com/seopseopi/zzik/issues)에 남겨 주세요. 공개 이슈에는 비밀번호나 실제 여행 사진 대신 재현 순서와 가상의 예시를 사용해 주세요.

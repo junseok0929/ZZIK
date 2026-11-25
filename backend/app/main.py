@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from datetime import timedelta
 from pathlib import Path
@@ -14,6 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
@@ -529,12 +531,79 @@ def queue_failed_analysis(db, photo):
     return True
 
 
+def trigger_lambda_analysis(photos):
+    """In Lambda mode a queued job only runs when S3 emits a new event for display.jpg."""
+    if settings.face_analysis_provider!='lambda': return
+    storage=get_storage()
+    if not hasattr(storage,'retrigger'): return
+    for photo in photos:
+        try: storage.retrigger(photo.display_key)
+        except Exception: log.exception('Lambda re-trigger failed for photo %s',photo.id)
+
+
+class AnalysisResultIn(BaseModel):
+    key: str = Field(min_length=1, max_length=1024)
+    scene: str | None = Field(default=None, max_length=40)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    people_count: int = Field(default=0, ge=0, le=500)
+    model: str | None = Field(default=None, max_length=100)
+    elapsed_ms: int = Field(default=0, ge=0)
+    error: str | None = Field(default=None, max_length=500)
+
+
+DISPLAY_KEY=re.compile(r'(?:.+/)?albums/([^/]+)/photos/([^/]+)/display\.jpg')
+
+
+@app.post('/api/internal/analysis-results')
+def receive_analysis_result(body:AnalysisResultIn,request:Request,db:DBSession=Depends(get_db)):
+    """Called by the S3-triggered Lambda after it asks the Claude API to classify a photo."""
+    token=settings.internal_api_token
+    if settings.face_analysis_provider!='lambda' or not token: fail(404,'NOT_FOUND','요청한 주소를 찾을 수 없어요.')
+    if not secrets.compare_digest(request.headers.get('X-Internal-Token',''),token): fail(401,'INVALID_TOKEN','내부 인증에 실패했어요.')
+    match=DISPLAY_KEY.fullmatch(body.key)
+    if not match: fail(422,'INVALID_KEY','사진 표시용 파일 경로가 아니에요.')
+    album_id,photo_id=match.groups()
+    lock_album(db,album_id)
+    photo=db.scalar(select(Photo).where(Photo.id==photo_id,Photo.album_id==album_id).with_for_update()
+                    .execution_options(populate_existing=True))
+    # 404 also covers the short window before the upload commit; the Lambda retries.
+    if not photo: fail(404,'PHOTO_NOT_FOUND','사진이 아직 등록되지 않았거나 삭제되었어요.')
+    job=db.scalar(select(AnalysisJob).where(AnalysisJob.photo_id==photo.id).with_for_update())
+    if body.error:
+        status,error='failed',body.error
+    else:
+        status,error='completed',None
+        tags=[]
+        for tag in ([body.scene] if body.scene else [])+body.tags:
+            tag=tag.strip()[:30]
+            if tag and tag not in tags: tags.append(tag)
+        photo.tags=tags[:10]
+        # Claude counts people but never identifies them; links stay manual.
+        photo.faces=[]
+        photo.face_count=body.people_count
+        photo.unknown_faces=0
+        metadata=dict(photo.analysis_metadata or {})
+        metadata.update(model=body.model,calls=1,elapsed_ms=body.elapsed_ms,analyzed_at=now().isoformat(),
+                        notice='Claude가 장면·태그·인원 수를 분류했어요. 등장 인물은 직접 지정해 주세요.')
+        photo.analysis_metadata=metadata
+    photo.analysis_status,photo.analysis_error=status,error
+    photo.analysis_provider,photo.analysis_mode='claude','live'
+    if job:
+        job.status,job.error,job.finished_at=status,error,now()
+        job.locked_at=job.locked_by=None
+    db.add(AnalysisRun(photo_id=photo.id,provider='claude',mode='live',model=body.model,status=status,
+                       calls=1,elapsed_ms=body.elapsed_ms,error=error))
+    db.commit()
+    return {'photo_id':photo.id,'status':status}
+
+
 @app.post('/api/photos/{photo_id}/reanalyze')
 def reanalyze(photo_id:str,user=Depends(auth),db:DBSession=Depends(get_db)):
     p=get_photo(db,photo_id,user,lock=True)
     if p.analysis_status!='failed': fail(409,'ANALYSIS_NOT_FAILED','분석에 실패한 사진만 다시 분석할 수 있어요.')
     if not queue_failed_analysis(db,p): fail(409,'ANALYSIS_ALREADY_QUEUED','이미 분석을 다시 진행하고 있어요.')
     db.commit()
+    trigger_lambda_analysis([p])
     return photo_dict(db,p)
 
 
@@ -563,9 +632,10 @@ def reanalyze_album_failures(album_id:str,user=Depends(auth),db:DBSession=Depend
     membership(db,album_id,user)
     photos=db.scalars(select(Photo).where(Photo.album_id==album_id,Photo.analysis_status=='failed')
                       .order_by(Photo.id).with_for_update().execution_options(populate_existing=True)).all()
-    queued=sum(queue_failed_analysis(db,photo) for photo in photos)
+    queued=[photo for photo in photos if queue_failed_analysis(db,photo)]
     db.commit()
-    return {'queued':queued}
+    trigger_lambda_analysis(queued)
+    return {'queued':len(queued)}
 
 
 @app.get('/api/photos/{photo_id}/file')

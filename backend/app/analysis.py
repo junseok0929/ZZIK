@@ -87,6 +87,10 @@ def validate_reference(data: bytes, original_hash: str | None = None) -> dict:
         except Exception as exc:
             raise aws_error(exc, 1) from exc
         result = {'provider': 'rekognition', 'mode': 'live', 'model': 'rekognition-2016-06-27', 'calls': 1}
+    elif provider == 'lambda':
+        # Claude does not identify people, so references are stored as-is and
+        # people are linked to photos manually.
+        return {'provider': 'claude', 'mode': 'manual', 'model': None, 'calls': 0, 'face_count': 1}
     else:
         raise AnalysisError('INVALID_PROVIDER', '분석 제공자 설정을 확인해 주세요.')
     if not faces:

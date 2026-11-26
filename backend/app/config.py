@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     allowed_origins: str = 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080'
     max_upload_bytes: int = 25 * 1024 * 1024
     max_image_pixels: int = 50_000_000
-    aws_region: str = 'ap-northeast-2'
+    aws_region: str = 'us-east-1'
     s3_bucket: str = ''
     s3_prefix: str = 'moacut/'
     rekognition_similarity_threshold: float = 90.0

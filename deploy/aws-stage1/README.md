@@ -8,7 +8,7 @@
                  └──── 분석 결과(토큰) ──── Lambda ──→ Claude API
 ```
 
-- 리전은 모두 서울(`ap-northeast-2`). VPC는 기본 VPC의 퍼블릭 서브넷만 쓴다.
+- 리전은 모두 버지니아 북부(`us-east-1`)다. 수업 계정은 다른 리전에 리소스를 만들 수 없다(RestrictRegionVirginia 정책). VPC는 기본 VPC의 퍼블릭 서브넷만 쓴다.
 - Claude는 사진의 장면·태그·인원 수만 분류한다. 사람이 누구인지는 판별하지 않으므로 인물 연결은 앱에서 직접 지정한다.
 - 아래 `BUCKET`, `ACCOUNT_ID`, `EC2_IP` 같은 대문자 값은 본인 값으로 바꾼다.
 
@@ -16,7 +16,7 @@
 
 | 항목 | 내용 |
 | --- | --- |
-| 권한 | EC2·S3·Lambda·IAM 역할 연결·CloudWatch Logs·Budgets (역할 생성이 막혀 있으면 아래 두 역할을 미리 받는다) |
+| 권한 | EC2·S3·Lambda·기존 역할 연결(`iam:PassRole`)·CloudWatch Logs·Budgets. 역할 생성은 막혀 있어 멘토가 준비한 Nxt 역할을 쓴다 |
 | Claude API 키 | 강사에게 받는다. 채팅·저장소에 붙여 넣지 않고 Lambda 환경 변수에만 넣는다 |
 | 내부 토큰 | `openssl rand -hex 32` 로 만든 값. EC2 `.env`와 Lambda에 같은 값을 넣는다 |
 
@@ -27,27 +27,29 @@
 ## 2. S3 버킷
 
 ```bash
-aws s3api create-bucket --bucket BUCKET --region ap-northeast-2 \
-  --create-bucket-configuration LocationConstraint=ap-northeast-2
+# us-east-1 에서는 LocationConstraint 를 지정하면 오류가 난다
+aws s3api create-bucket --bucket BUCKET --region us-east-1
 aws s3api put-public-access-block --bucket BUCKET --public-access-block-configuration \
   BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
 ```
 
 사진은 공개하지 않는다. 앱이 권한을 확인한 뒤 120초짜리 서명 URL로만 내려준다.
 
-## 3. IAM 역할 두 개
+## 3. IAM 역할
 
-| 역할 | 신뢰 대상 | 붙일 정책 |
+수업 계정에서는 IAM 역할을 새로 만들 수 없다(`iam:CreateRole` 거부). 역할을 만들지 않고 멘토가 준비한 기존 Nxt 역할을 쓴다.
+
+| 용도 | 역할 | 비고 |
 | --- | --- | --- |
-| `zzik-ec2-role` (인스턴스 프로파일) | EC2 | `iam/ec2-s3-policy.json` (BUCKET 치환) |
-| `zzik-lambda-role` | Lambda | `iam/lambda-s3-read-policy.json` (BUCKET 치환) + AWS 관리형 `AWSLambdaBasicExecutionRole` |
+| Lambda | `Nxt-Lambda-S3-ReadWrite` | `AmazonS3ReadOnlyAccess` + `AWSLambdaBasicExecutionRole` |
+| EC2 | 멘토 확인 필요 | 인스턴스 프로파일이 이미 붙어 있으면 그대로 쓴다. `ControlOnlyOwnResources` 정책 때문에 소유자 태그 규칙도 멘토 확인 필요 |
 
-EC2와 Lambda 모두 액세스 키 없이 역할로 S3에 접근한다.
+EC2와 Lambda 모두 액세스 키 없이 역할로 S3에 접근한다. `iam/` 아래 정책 JSON은 역할을 직접 만들 수 있는 계정에서 쓰는 참고용이다.
 
 ## 4. EC2
 
 - AMI: Amazon Linux 2023, 유형: `t3.small` 이상, 기본 VPC의 퍼블릭 서브넷, 공인 IP 자동 할당
-- IAM 인스턴스 프로파일: `zzik-ec2-role`
+- IAM 인스턴스 프로파일: 3장 참고(기존 프로파일 사용, 멘토 확인 필요)
 - 보안 그룹 인바운드: HTTP 80 (0.0.0.0/0), SSH 22 (**내 IP만**). PostgreSQL 5432는 열지 않는다
 - 사용자 데이터: `ec2-user-data.sh` 내용을 붙여 넣는다 (Docker, Compose, 스왑, 저장소 clone)
 
@@ -68,9 +70,9 @@ curl --fail http://localhost/api/health/ready
 
 ```bash
 cd lambda/analyze_photo && zip -j /tmp/analyze_photo.zip handler.py && cd -
-aws lambda create-function --function-name zzik-analyze-photo --region ap-northeast-2 \
+aws lambda create-function --function-name zzik-analyze-photo --region us-east-1 \
   --runtime python3.12 --handler handler.lambda_handler --zip-file fileb:///tmp/analyze_photo.zip \
-  --role arn:aws:iam::ACCOUNT_ID:role/zzik-lambda-role --timeout 120 --memory-size 256 \
+  --role arn:aws:iam::ACCOUNT_ID:role/Nxt-Lambda-S3-ReadWrite --timeout 120 --memory-size 256 \
   --environment "Variables={CLAUDE_API_KEY=강사에게_받은_키,RESULT_URL=http://EC2_IP/api/internal/analysis-results,INTERNAL_API_TOKEN=EC2와_같은_토큰,CLAUDE_MODEL=claude-haiku-5-5,CLAUDE_TEMPERATURE=0}"
 # 한꺼번에 많이 호출되지 않도록 동시 실행 상한
 aws lambda put-function-concurrency --function-name zzik-analyze-photo --reserved-concurrent-executions 5

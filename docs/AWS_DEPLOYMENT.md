@@ -29,7 +29,7 @@ docker compose logs --tail=100 api worker
 | `WORKER_CONCURRENCY` | 2; 프로세스당 동시 작업 수 |
 | `WORKER_MAX_ATTEMPTS`, `WORKER_LEASE_SECONDS` | 기본 3회, 120초; `.env` 값이 있으면 우선 |
 | `REKOGNITION_SIMILARITY_THRESHOLD`, `REKOGNITION_CANDIDATE_MARGIN` | 90, 5; 정확도 보장값 아님 |
-| `S3_BUCKET`, `S3_PREFIX`, `AWS_REGION` | 버킷, 기본 `moacut/`, 기본 `ap-northeast-2` |
+| `S3_BUCKET`, `S3_PREFIX`, `AWS_REGION` | 버킷, 기본 `moacut/`, 기본 `us-east-1` |
 | `ALLOWED_ORIGINS`, `COOKIE_SECURE` | 브라우저 주소 목록, HTTPS에서는 `true` |
 | `GEOCODING_URL` | 비어 있으면 장소명 조회를 하지 않음 |
 
@@ -94,7 +94,7 @@ DATABASE_URL=postgresql+psycopg://APP_USER:URL_ENCODED_PASSWORD@RDS_ENDPOINT:543
 STORAGE_BACKEND=s3
 S3_BUCKET=PRIVATE_BUCKET
 S3_PREFIX=moacut/
-AWS_REGION=ap-northeast-2
+AWS_REGION=us-east-1
 FACE_ANALYSIS_PROVIDER=rekognition
 REKOGNITION_COLLECTION_PREFIX=moacut-
 DEMO_ENABLED=false
@@ -172,9 +172,9 @@ docker compose logs --tail=200 worker
 Rekognition 인덱싱 직후 프로세스가 중단되면 DB에 연결되지 않은 얼굴 인덱스가 남을 수 있다. 재시도는 같은 이미지·외부 ID로 중복 인덱싱을 피하고, 앨범 삭제는 컬렉션 전체를 정리한다. 장기 운영에서는 원격 컬렉션과 DB를 대조해야 하며 현재 자동 대조 도구는 없다. 계정에서 컬렉션을 조회하거나 폐기할 때는 정확한 ID를 확인한다.
 
 ```sh
-aws rekognition list-collections --region ap-northeast-2
+aws rekognition list-collections --region us-east-1
 # 앱에서 삭제한 앨범의 잔여 컬렉션임을 확인한 뒤에만:
-aws rekognition delete-collection --region ap-northeast-2 --collection-id EXACT_COLLECTION_ID
+aws rekognition delete-collection --region us-east-1 --collection-id EXACT_COLLECTION_ID
 ```
 
 `docker compose down`은 컨테이너와 네트워크를 정리하고 DB·사진 볼륨은 보존한다. 백업이 있고 로컬 데모 데이터를 완전히 폐기하려는 경우에만 `docker compose down --volumes`를 사용한다. AWS 리소스 종료와 버킷·RDS 삭제는 앱 삭제와 별개이며, 실행한 리소스 목록과 백업을 확인한 뒤 운영자가 수행해야 한다.

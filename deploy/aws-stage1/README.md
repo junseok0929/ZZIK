@@ -70,22 +70,23 @@ curl --fail http://localhost/api/health/ready
 
 ```bash
 cd lambda/analyze_photo && zip -j /tmp/analyze_photo.zip handler.py && cd -
-aws lambda create-function --function-name zzik-analyze-photo --region us-east-1 \
+aws lambda create-function --function-name kmu-proj-06-zzik-analyze --region us-east-1 \
   --runtime python3.12 --handler handler.lambda_handler --zip-file fileb:///tmp/analyze_photo.zip \
   --role arn:aws:iam::ACCOUNT_ID:role/Nxt-Lambda-S3-ReadWrite --timeout 120 --memory-size 256 \
-  --environment "Variables={CLAUDE_API_KEY=강사에게_받은_키,RESULT_URL=http://EC2_IP/api/internal/analysis-results,INTERNAL_API_TOKEN=EC2와_같은_토큰,CLAUDE_MODEL=claude-haiku-5-5,CLAUDE_TEMPERATURE=0}"
+  --environment "Variables={RESULT_URL=http://EC2_IP/api/internal/analysis-results,CLAUDE_MODEL=claude-haiku-5-5,CLAUDE_TEMPERATURE=0}"
 # 한꺼번에 많이 호출되지 않도록 동시 실행 상한
-aws lambda put-function-concurrency --function-name zzik-analyze-photo --reserved-concurrent-executions 5
+aws lambda put-function-concurrency --function-name kmu-proj-06-zzik-analyze --reserved-concurrent-executions 5
 ```
 
-- 환경 변수에 키를 넣을 때는 터미널 기록에 남지 않도록 콘솔(Lambda → 구성 → 환경 변수)에서 넣어도 된다.
+- 수업 계정 주의: 만들 때 `--tags` 를 붙이면 `lambda:TagResource` 거부로 생성이 실패한다. 태그 없이 만든 뒤 콘솔 Lambda → Configuration → Tags → Manage tags 에서 `username=kmu-proj-06`, `group=kmu-proj` 를 붙인다. 태그가 없으면 `ControlOnlyOwnResources` 정책 때문에 만든 함수도 조회·수정할 수 없다.
+- `--environment` 는 환경 변수 전체를 덮어쓴다. 비밀값이 아닌 `RESULT_URL`·`CLAUDE_MODEL` 등을 먼저 넣고, `CLAUDE_API_KEY`·`INTERNAL_API_TOKEN` 은 마지막에 콘솔(Configuration → Environment variables)에서 추가한다. 터미널 기록에도 남지 않는다.
 - `CLAUDE_MODEL` 은 받은 키로 쓸 수 있는 모델 이름으로 맞춘다. 최신 모델 이름은 https://docs.claude.com 에서 확인한다.
 - 일부 모델이 `temperature` 를 받지 않으면 `CLAUDE_TEMPERATURE` 를 빈 값으로 둔다.
 
 ## 7. S3 → Lambda 트리거
 
 ```bash
-aws lambda add-permission --function-name zzik-analyze-photo --statement-id s3-invoke \
+aws lambda add-permission --function-name kmu-proj-06-zzik-analyze --statement-id s3-invoke \
   --action lambda:InvokeFunction --principal s3.amazonaws.com \
   --source-arn arn:aws:s3:::BUCKET --source-account ACCOUNT_ID
 # s3-notification.json 의 LAMBDA_ARN 을 함수 ARN 으로 바꾼 뒤
@@ -99,7 +100,7 @@ aws s3api put-bucket-notification-configuration --bucket BUCKET \
 
 1. 사진을 올리면 수십 초 안에 분석 상태가 "완료"로 바뀌고 장면·태그가 붙는다.
 2. 태그 필터와 "혼자/함께" 필터(사람 수 기준)로 분류가 보인다.
-3. Lambda 로그: CloudWatch Logs `/aws/lambda/zzik-analyze-photo` 에 `Saved …` 가 찍힌다.
+3. Lambda 로그: CloudWatch Logs `/aws/lambda/kmu-proj-06-zzik-analyze` 에 `Saved …` 가 찍힌다.
 4. 분석 실패 사진은 앱의 "다시 분석"을 누르면 EC2가 S3 객체를 자기 자신에게 복사해 Lambda를 다시 실행한다.
 
 ## 9. 문제 해결
